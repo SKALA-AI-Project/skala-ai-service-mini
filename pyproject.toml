@@ -1,9 +1,0 @@
-[project]
-name = "skala-ai-service-mini"
-version = "0.1.0"
-description = "HBM4, PIM, CXL 기술 전략 보고서를 생성하는 경량 Agentic Workflow"
-requires-python = ">=3.11"
-
-[tool.pytest.ini_options]
-pythonpath = ["."]
-testpaths = ["tests"]
