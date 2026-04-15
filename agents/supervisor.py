@@ -93,10 +93,9 @@ class SupervisorAgent:
         """gpt-4o-mini를 활용해 분석 목적에 맞는 보고서 제목을 생성한다.
         mock 모드(use_live_api=False)이거나 config가 없으면 기본 제목을 반환한다.
         """
+        tech_str = " · ".join(topics)
         if config is None or not config.use_live_api:
-            competitor_str = " & ".join(competitors)
-            tech_str = " · ".join(topics)
-            return f"{competitor_str} {tech_str} 기술 경쟁력 분석"
+            return f"{tech_str} 기반 기술 경쟁력 보고서"
 
         from openai import OpenAI
 
@@ -104,12 +103,12 @@ class SupervisorAgent:
         prompt = (
             "다음 조건으로 반도체 기술 분석 보고서 제목을 한국어로 한 줄 생성하세요.\n"
             f"분석 기술: {', '.join(topics)}\n"
-            f"경쟁사: {', '.join(competitors)}\n"
             f"사용자 요청: {user_query or '없음'}\n\n"
             "조건:\n"
+            f"- 형식: '{tech_str} 기반 {{분석 유형}} 보고서'\n"
             "- 25자 이내의 간결한 제목\n"
             "- SK하이닉스 R&D 전략 보고서 톤\n"
-            "- 기술명과 경쟁사명 포함\n"
+            "- 반드시 '보고서'로 끝낼 것\n"
             "- 제목 텍스트만 출력 (따옴표·부제목 없음)"
         )
         response = client.chat.completions.create(
@@ -119,7 +118,7 @@ class SupervisorAgent:
             temperature=0.3,
         )
         title = response.choices[0].message.content.strip().strip("\"'「」『』")
-        return title or f"{' & '.join(competitors)} {'·'.join(topics)} 기술 경쟁력 분석"
+        return title or f"{tech_str} 기반 기술 경쟁력 보고서"
 
     def validate_search_coverage(self, state: WorkflowState) -> ValidationResult:
         """모든 기술과 경쟁사가 검색 결과에 포함됐는지 확인한다."""

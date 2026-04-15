@@ -68,14 +68,34 @@ class TrlAnalysisNode:
         for item in search_results:
             grouped[f"{item['tech']}::{item['company']}"].append(item)
 
+        indicator_labels = {
+            "patent": "특허출원",
+            "academic": "학술발표(ISSCC·논문)",
+            "hiring": "채용공고(제조·공정 엔지니어)",
+            "partnership": "파트너십/공급망",
+            "ir": "IR/투자자 언급",
+        }
+
         assessments: dict[str, dict[str, TrlAssessment]] = defaultdict(dict)
         for key, items in grouped.items():
             tech, company = key.split("::", maxsplit=1)
-            trl, basis, confidence, limitation, signal_count = self._infer_trl(
-                tech,
-                company,
-                items,
+            text_blob = " ".join(
+                f"{item['query']} {item['title']} {item['content']}".lower()
+                for item in items
             )
+            detected = {
+                ind: self._detect_indicator(text_blob, ind)
+                for ind in indicator_labels
+            }
+            signal_count = sum(detected.values())
+            detected_str = ", ".join(
+                label for ind, label in indicator_labels.items() if detected[ind]
+            ) or "없음"
+            undetected_str = ", ".join(
+                label for ind, label in indicator_labels.items() if not detected[ind]
+            ) or "없음"
+
+            trl, basis, confidence, limitation, _ = self._infer_trl(tech, company, items)
             assessments[tech][company] = TrlAssessment(
                 company=company,
                 tech=tech,
@@ -84,8 +104,10 @@ class TrlAnalysisNode:
                 confidence=confidence,
                 evidence=[
                     f"{items[0]['published_date']} 기준 최근 검색 결과 {len(items)}건 확보",
-                    f"{company} / {tech}에 대해 긍정·부정·중립 관점 자료를 수집",
-                    f"간접지표 5종 중 {signal_count}개에서 신호를 확인",
+                    f"본 보고서는 {company} / {tech}에 대해 긍정·부정·중립 관점 자료를 수집",
+                    f"간접지표 5종: 특허출원, 학술발표(ISSCC·논문), 채용공고(제조·공정 엔지니어), 파트너십/공급망, IR/투자자 언급",
+                    f"신호 확인({signal_count}개): {detected_str}",
+                    f"신호 미확인: {undetected_str}",
                 ],
                 limitation=limitation,
             )

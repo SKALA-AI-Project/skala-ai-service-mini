@@ -193,11 +193,13 @@ def run_report_workflow(
         state["draft_retry_count"] += 1
 
     print("[LOG] 포맷팅 시작")
+    report_subtitle = " · ".join(state["competitors"]) + " 경쟁 현황 분석"
     md_path, pdf_path, export_ok = formatting_node.export(
         markdown,
         output_dir,
         allow_pdf=use_live_api,
         report_title=state["report_title"],
+        report_subtitle=report_subtitle,
     )
     state["final_report_md_path"] = md_path
     state["final_report_pdf_path"] = pdf_path
@@ -242,6 +244,7 @@ def run_report_workflow(
             output_dir,
             allow_pdf=use_live_api,
             report_title=state["report_title"],
+            report_subtitle=report_subtitle,
         )
         state["final_report_md_path"] = md_path
         state["final_report_pdf_path"] = pdf_path

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
-
 from langchain_core.prompts import ChatPromptTemplate
 from langsmith import traceable
 
@@ -164,7 +162,8 @@ class DraftGenerationAgent:
         search_results: list[SearchResult],
         assessments: dict[str, dict[str, TrlAssessment]],
     ) -> tuple[ReportSections, dict[str, int], str]:
-        """API 사용이 어려운 환경을 위한 규칙 기반 대체 경로다."""
+        """테스트·오프라인 환경용 최소 구조 스켈레톤을 반환한다.
+        실제 내용 생성은 _generate_with_llm(gpt-4o)이 담당한다."""
         topics = list(assessments.keys())
         competitors = sorted(
             {
@@ -173,111 +172,35 @@ class DraftGenerationAgent:
                 for company in company_map.keys()
             }
         )
-        evidence_map = self._build_evidence_map(search_results)
-
-        executive_summary = self._ensure_min_length(
-            (
-                f"본 보고서는 {', '.join(topics)} 기술을 대상으로 {', '.join(competitors)}의 최근 공개 자료를 분석해 "
-                "기술 현황과 경쟁 압력을 검토하고, SK하이닉스의 대응 방향을 정리하기 위해 작성되었다. "
-                "수집된 자료는 긍정, 부정, 중립 관점을 함께 포함하며, 단일 기업 발표에 의존하지 않고 기사, 공식 발표, 분석성 자료를 교차 검토했다. "
-                "HBM4는 공개된 양산·출하 신호와 고객사 연계 발표로 인해 비교적 높은 기술 성숙도가 확인되며, "
-                "PIM은 아직 직접적인 상용화 증거가 제한적이어서 보수적 추정이 필요하다. "
-                "따라서 본 보고서는 즉시 경쟁이 벌어지는 고성숙 기술과 중장기 검증이 필요한 기술을 구분해 해석하고, "
-                "실행 우선순위를 도출하는 데 초점을 둔다."
-            ),
-            self._exec_sum_min,
-        )[: self._exec_sum_max]
-        analysis_background = self._ensure_min_length(
-            (
-                f"본 분석은 {', '.join(topics)} 영역에서 {', '.join(competitors)}의 기술 추진 방향, 양산 신호, 공개 발표의 질을 정리하고 "
-                "SK하이닉스가 어떤 기술에 즉시 대응해야 하며 어떤 기술은 중장기 추적 대상으로 볼지 판단하는 데 목적이 있다. "
-                "특히 고성능 메모리와 차세대 메모리 아키텍처는 단순 기술 개발을 넘어 고객사 채택, 공급망 대응, 생산 능력 확대와 연결되므로 "
-                "반복적으로 관측되는 공개 신호의 성격을 중심으로 분석한다. "
-                f"분석 범위는 기술적으로 {', '.join(topics)}이며, 경쟁사 범위는 {', '.join(competitors)}로 한정한다. "
-                "시간 범위는 사용자 요청 기준 최근 공개 자료를 우선 반영하며, 자료 유형은 기업 공식 발표, 일반 뉴스, "
-                "리스크 관점 검색 결과, 기술 동향 기사 등을 포함한다. "
-                "각 기술에 대해 단순 제품 출시 여부만이 아니라 양산·출하 신호, 고객사 적용 가능성, 성능 수치, "
-                "제조 전략, 기사 맥락에서 드러나는 위험 요소까지 함께 검토하며, "
-                "지정되지 않은 기술과 경쟁사를 확장하지 않고 요청 범위 안에서 실질적인 전략 판단에 필요한 정보만 구조화한다."
-            ),
-            self._section_min,
-        )
-        tech_status = self._ensure_min_length(
-            " ".join(
-                [
-                    self._build_topic_status_paragraph(
-                        topic,
-                        evidence_map.get(topic, []),
-                    )
-                    for topic in topics
-                ]
-            ),
-            self._section_min,
-        )
 
         result_blocks: list[str] = []
         for index, competitor in enumerate(competitors, start=1):
+            trl_lines = [
+                f"{topic}: TRL {assessments[topic][competitor]['trl']} ({assessments[topic][competitor]['basis']})"
+                for topic in topics
+                if competitor in assessments.get(topic, {})
+            ]
             result_blocks.append(
-                "\n\n".join(
-                    [
-                        f"## 3.{index} {competitor}",
-                        f"## 3.{index}.1 {competitor} 동향\n"
-                        + self._ensure_min_length(
-                            self._build_competitor_trend_paragraph(
-                                competitor,
-                                evidence_map,
-                                topics,
-                            ),
-                            self._section_min,
-                        ),
-                        f"## 3.{index}.2 {competitor} TRL 기반 기술 성숙도\n"
-                        + self._ensure_min_length(
-                            self._build_competitor_trl_paragraph(
-                                competitor,
-                                assessments,
-                                topics,
-                            ),
-                            self._section_min,
-                        ),
-                        f"## 3.{index}.3 {competitor} 전략적 시사점\n"
-                        + self._ensure_min_length(
-                            self._build_competitor_insight_paragraph(
-                                competitor,
-                                topics,
-                            ),
-                            self._section_min,
-                        ),
-                    ]
-                )
+                f"## 3.{index} {competitor}\n\n"
+                f"### 3.{index}.1 {competitor} 동향\n{competitor} 동향 (mock).\n\n"
+                f"### 3.{index}.2 {competitor} TRL 기반 기술 성숙도\n"
+                + "\n".join(trl_lines) + "\n\n"
+                + f"### 3.{index}.3 {competitor} 전략적 시사점\n{competitor} 전략적 시사점 (mock)."
             )
 
-        conclusion = self._ensure_min_length(
-            (
-                f"종합적으로 보면 {', '.join(topics)}에 대한 {', '.join(competitors)}의 공개 신호는 서로 다른 성숙도와 대응 우선순위를 보여준다. "
-                "HBM4처럼 양산과 출하, 고객사 적용 언급이 관측되는 기술은 이미 실행 단계 경쟁으로 해석해야 하며, "
-                "단순 연구개발 수준의 논의로 보기 어렵다. 반면 PIM은 장기적 잠재력은 높지만 공개 자료만으로는 상용화 진척을 단정하기 어렵고, "
-                "따라서 마케팅성 메시지보다 실질적인 검증 근거를 중심으로 보수적으로 읽어야 한다. "
-                "SK하이닉스는 성숙도가 높은 기술에서는 양산 경쟁력과 고객사 대응 속도를 강화하고, "
-                "추정 구간 기술에서는 실수요와 제품화 가능성 검증에 자원을 배분하는 이중 전략이 필요하다."
-            ),
-            self._section_min,
-        )
-        references = "\n".join(
-            f"- [{item['title']}]({item['url']})"
-            for item in search_results
-        )
-
         sections = ReportSections(
-            executive_summary=executive_summary,
-            analysis_background=analysis_background,
-            tech_status=tech_status,
+            executive_summary=f"{', '.join(topics)} 기술 대상 {', '.join(competitors)} 분석 요약 (mock).",
+            analysis_background=f"분석 기술: {', '.join(topics)} / 경쟁사: {', '.join(competitors)} (mock).",
+            tech_status=f"{', '.join(topics)} 기술 현황 요약 (mock).",
             investigation_results="\n\n".join(result_blocks),
-            conclusion=conclusion,
-            reference=references,
+            conclusion=f"{', '.join(topics)} 기반 SK하이닉스 대응 방향 요약 (mock).",
+            reference="\n".join(
+                f"- [{item['title']}]({item['url']})" for item in search_results
+            ),
         )
         markdown = self._to_markdown(sections)
         scores = self._score_with_rules(sections, search_results)
-        print(f"[LOG] 규칙 기반 초안 생성 완료: draft_scores={scores}")
+        print(f"[LOG] 스켈레톤 초안 생성 완료(mock): draft_scores={scores}")
         return sections, scores, markdown
 
     def _to_markdown(self, sections: ReportSections) -> str:
@@ -332,98 +255,6 @@ class DraftGenerationAgent:
             "evidence_score": evidence_score,
             "consistency_score": consistency_score,
         }
-
-    def _build_evidence_map(
-        self,
-        search_results: list[SearchResult],
-    ) -> dict[str, list[SearchResult]]:
-        evidence_map: dict[str, list[SearchResult]] = defaultdict(list)
-        for item in search_results:
-            evidence_map[item["tech"]].append(item)
-        return evidence_map
-
-    def _build_topic_status_paragraph(
-        self,
-        tech: str,
-        items: list[SearchResult],
-    ) -> str:
-        title_block = ", ".join(item["title"] for item in items[:3])
-        return (
-            f"{tech}의 기술 현황은 최근 공개 자료에서 반복적으로 드러난 사실을 기준으로 정리했다. "
-            f"대표적으로 {title_block}와 같은 자료가 확인되었으며, 이들 자료는 제품 출시, 생산 확대, "
-            "리스크 신호, 적용 분야를 서로 다른 관점에서 보여준다. "
-            "따라서 본 보고서는 단순 홍보 문구를 그대로 옮기지 않고, 성능 수치와 출하, 제조 전략, 기사 맥락을 함께 보며 "
-            f"{tech}의 실제 실행 단계와 전략적 의미를 해석한다."
-        )
-
-    def _build_competitor_trend_paragraph(
-        self,
-        competitor: str,
-        evidence_map: dict[str, list[SearchResult]],
-        topics: list[str],
-    ) -> str:
-        parts = []
-        for topic in topics:
-            items = [item for item in evidence_map.get(topic, []) if item["company"] == competitor]
-            if not items:
-                continue
-            parts.append(
-                f"{topic}에서는 {items[0]['title']}를 포함한 최근 자료가 확인되며, "
-                f"{competitor}의 공개 발표와 기사 흐름은 해당 기술을 시장 경쟁력 강화 수단으로 활용하려는 방향을 보여준다."
-            )
-        parts.append(
-            f"전반적으로 {competitor}의 동향은 생산, 고객 적용, 전략 발표를 통해 시장 주도권을 강화하려는 모습으로 해석되지만, "
-            "공식 발표의 성격상 낙관적 표현이 섞여 있을 가능성도 있어 중립 기사와 리스크 관점 자료를 함께 읽는 것이 필요하다."
-        )
-        return " ".join(parts)
-
-    def _build_competitor_trl_paragraph(
-        self,
-        competitor: str,
-        assessments: dict[str, dict[str, TrlAssessment]],
-        topics: list[str],
-    ) -> str:
-        parts = []
-        for topic in topics:
-            assessment = assessments.get(topic, {}).get(competitor)
-            if not assessment:
-                continue
-            basis_text = "확인" if assessment["basis"] == "confirmed" else "추정"
-            limitation_text = (
-                f" 한계는 {assessment['limitation']}."
-                if assessment["limitation"]
-                else ""
-            )
-            parts.append(
-                f"{topic}의 TRL은 {assessment['trl']}로 {basis_text}되며, confidence는 {assessment['confidence']}이다.{limitation_text}"
-            )
-        parts.append(
-            f"따라서 {competitor}의 기술 성숙도는 기술별로 구분해서 읽어야 하며, "
-            "양산 신호가 있는 기술과 간접지표에 의존하는 기술을 같은 선상에서 비교하면 안 된다."
-        )
-        return " ".join(parts)
-
-    def _build_competitor_insight_paragraph(
-        self,
-        competitor: str,
-        topics: list[str],
-    ) -> str:
-        return (
-            f"{competitor}에 대한 전략적 시사점은 {', '.join(topics)} 각각의 실행 단계에 맞는 대응 체계를 분리해야 한다는 점이다. "
-            "성숙도가 높은 기술은 고객사 대응, 성능 우위, 생산 경쟁력 확보가 핵심이며, "
-            "추정 단계 기술은 언론 노출보다 실제 상용화 조건과 생태계 적합성을 검증하는 쪽이 중요하다. "
-            "결국 경쟁사의 발표량 자체보다 발표의 직접성, 수치의 구체성, 공급 및 출하 신호를 함께 읽는 분석 체계가 필요하다."
-        )
-
-    def _ensure_min_length(self, text: str, minimum: int) -> str:
-        """피드백에서 요구한 최소 글자 수를 만족하도록 문장을 보강한다."""
-        filler = (
-            " 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, "
-            "그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다."
-        )
-        while len(text) < minimum:
-            text += filler
-        return text
 
     def _build_competitor_sections_spec(self, competitors: list[str]) -> str:
         """LLM 프롬프트에 주입할 경쟁사별 섹션 목차 명세를 동적으로 생성한다."""
