@@ -115,10 +115,10 @@ cp .env.example .env
 python app.py
 
 # 쿼리 지정
-python app.py --query "최근 6개월 HBM4와 PIM Samsung 분석"
+python app.py --query "최근 6개월 기준으로 Samsung, Micron, Hynix 기술 동향을  비교 분석 해서 보고서 작성해"
 
 # 작성자 및 출력 경로 지정
-python app.py --query "HBM4 CXL Samsung Micron 분석" \
+python app.py --query "최근 6개월 기준으로 Samsung, Micron, Hynix 기술 동향을  비교 분석 해서 보고서 작성해" \
   --writer 김세림 남희정 최지호 \
   --output-dir outputs/reports
 
