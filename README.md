@@ -76,7 +76,9 @@ skala-ai-service-mini/
 │   └── hitl_node.py               # Human-in-the-Loop 검토
 ├── prompts/
 │   ├── draft_prompt.py            # 보고서 초안 생성 프롬프트
-│   └── quality_prompt.py          # 초안 품질 평가 프롬프트
+│   ├── quality_prompt.py          # 초안 품질 평가 프롬프트
+│   ├── search_prompt.py           # 웹 검색 쿼리 프롬프트
+│   └── trl_prompt.py              # TRL 평가 프롬프트
 ├── schemas/
 │   ├── state.py                   # 워크플로우 상태 TypedDict
 │   ├── search_result.py           # 검색 결과 스키마
@@ -84,14 +86,9 @@ skala-ai-service-mini/
 │   └── report_sections.py         # 보고서 섹션 스키마
 ├── workflows/
 │   └── report_workflow.py         # 워크플로우 진입점 및 실행 루프
-├── tests/
-│   ├── test_report_workflow.py    # 워크플로우 E2E 테스트
-│   └── test_formatting_node.py    # PDF 렌더링 테스트
 ├── icons/                         # 커버 페이지 로고 이미지
-├── data/                          # 데이터 디렉터리 (gitkeep)
-├── app.py                         # Gradio 기반 실행 UI
+├── app.py                         # CLI 실행 진입점
 ├── config.py                      # 환경 변수 및 런타임 설정
-├── pyproject.toml                 # 프로젝트 메타데이터 및 pytest 설정
 ├── requirements.txt               # 의존성 패키지 목록
 └── .env.example                   # 환경 변수 템플릿
 ```
@@ -112,27 +109,28 @@ cp .env.example .env
 # LANGCHAIN_API_KEY=...  (LangSmith 사용 시)
 ```
 
-**3. 워크플로우 실행**
+**3. 실행**
 ```bash
 # 기본 실행 (HBM4·PIM·CXL / Samsung·Micron)
-python workflows/report_workflow.py --live
+python app.py
 
 # 쿼리 지정
-python workflows/report_workflow.py --live --query "최근 6개월 HBM4와 PIM Samsung 분석"
+python app.py --query "최근 6개월 HBM4와 PIM Samsung 분석"
 
 # 작성자 및 출력 경로 지정
-python workflows/report_workflow.py --live \
+python app.py --query "HBM4 CXL Samsung Micron 분석" \
   --writer 김세림 남희정 최지호 \
-  --output outputs/reports
-```
+  --output-dir outputs/reports
 
-**4. 테스트 실행 (오프라인 mock)**
-```bash
-pytest
+# 오프라인 mock 실행 (API 키 불필요)
+python app.py --mock
+
+# 최종 상태 JSON 함께 저장
+python app.py --save-state
 ```
 
 ## Contributors
 
-- 김세림 : Prompt Engineering, Agent Design
-- 남희정 : Workflow Design, TRL Analysis
-- 최지호 : Report Generation, Output Formatting
+- 김세림 : Draft Generation Agent, Writing Report
+- 남희정 : TRL Analysis, Bias Detection, Writing Report
+- 최지호 : Web Search Agent, Output Formatting

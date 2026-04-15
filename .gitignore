@@ -27,10 +27,13 @@ dist/
 README_copy.md
 
 # Local data artifacts
-data/raw/*
-data/processed/*
-!data/raw/.gitkeep
-!data/processed/.gitkeep
+data/
+
+# Tests
+tests/
+
+# Internal / unused docs
+docs/
 
 # Generated outputs (reports, logs)
 outputs/

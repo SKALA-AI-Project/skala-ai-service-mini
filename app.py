@@ -32,6 +32,13 @@ def parse_args() -> argparse.Namespace:
         default="",
         help="Supervisor가 분석 범위를 추출할 사용자 요청 문장",
     )
+    parser.add_argument(
+        "--writer",
+        nargs="+",
+        metavar="NAME",
+        default=[],
+        help="작성자 이름 (예: --writer 김세림 남희정 최지호)",
+    )
     return parser.parse_args()
 
 
@@ -47,6 +54,7 @@ def main() -> None:
         output_dir=Path(args.output_dir),
         user_query=args.query,
         use_live_api=not args.mock,
+        writers=args.writer or None,
     )
 
     print("워크플로우 실행 완료")
