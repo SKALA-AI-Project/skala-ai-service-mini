@@ -49,3 +49,6 @@ feedbacks/
 "README copy.md"
 PLAN.md
 DIRECTORY_STRUCTURE.md
+AGENTS.md
+design.md
+pyproject.toml
