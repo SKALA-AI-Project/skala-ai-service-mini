@@ -25,8 +25,7 @@ class DraftFrameOutput(BaseModel):
     """조사 결과를 제외한 보고서 프레임 섹션 구조."""
 
     executive_summary: str = Field(description="EXECUTIVE SUMMARY 본문")
-    analysis_background: str = Field(description="분석 배경 본문 (목적·범위 통합)")
-    tech_status: str = Field(description="기술 현황 본문")
+    analysis_background: str = Field(description="분석 배경 및 기술 현황 통합 본문 (목적·범위·현황)")
     conclusion: str = Field(description="결론 본문")
     reference: str = Field(description="URL 기반 참고문헌 목록")
 
@@ -187,9 +186,9 @@ class DraftGenerationAgent:
                 }
             )
             competitor_blocks.append(
-                f"## 3.{index} {competitor}\n\n"
-                f"### 3.{index}.1 {competitor} 동향\n{comp_section.trend}\n\n"
-                f"### 3.{index}.2 {competitor} TRL 기반 기술 성숙도\n{comp_section.trl_assessment}"
+                f"## 2.{index} {competitor}\n\n"
+                f"### 2.{index}.1 {competitor} 동향\n{comp_section.trend}\n\n"
+                f"### 2.{index}.2 {competitor} TRL 기반 기술 성숙도\n{comp_section.trl_assessment}"
             )
             print(f"[LOG] {competitor} 조사 결과 섹션 생성 완료")
 
@@ -210,18 +209,13 @@ class DraftGenerationAgent:
                 "trl_block": "\n".join(all_trl),
             }
         )
-        unified_strat_index = len(competitors) + 1
-        competitor_blocks.append(
-            f"## 3.{unified_strat_index} 전략적 시사점\n\n"
-            f"{strat_section.strategic_implications}"
-        )
         print(f"[LOG] 전략적 시사점 통합 섹션 생성 완료")
 
         sections = ReportSections(
             executive_summary=frame.executive_summary,
             analysis_background=frame.analysis_background,
-            tech_status=frame.tech_status,
             investigation_results="\n\n".join(competitor_blocks),
+            strategic_implications=strat_section.strategic_implications,
             conclusion=frame.conclusion,
             reference=frame.reference,
         )
@@ -283,17 +277,11 @@ class DraftGenerationAgent:
                 if competitor in assessments.get(topic, {})
             ]
             result_blocks.append(
-                f"## 3.{index} {competitor}\n\n"
-                f"### 3.{index}.1 {competitor} 동향\n{competitor} 동향 (mock).\n\n"
-                f"### 3.{index}.2 {competitor} TRL 기반 기술 성숙도\n"
+                f"## 2.{index} {competitor}\n\n"
+                f"### 2.{index}.1 {competitor} 동향\n{competitor} 동향 (mock).\n\n"
+                f"### 2.{index}.2 {competitor} TRL 기반 기술 성숙도\n"
                 + "\n".join(trl_lines)
             )
-        unified_strat_index = len(competitors) + 1
-        result_blocks.append(
-            f"## 3.{unified_strat_index} 전략적 시사점\n\n"
-            f"SK하이닉스 전략적 시사점 (mock)."
-        )
-
         ref_entries = "\n".join(
             f"- [{item['title']}]({item['url']})" for item in search_results
         ) or "- (검색 결과 없음 — API 키 필요)"
@@ -301,8 +289,8 @@ class DraftGenerationAgent:
         sections = ReportSections(
             executive_summary=f"{', '.join(topics)} 기술 대상 {', '.join(competitors)} 분석 요약 (mock).",
             analysis_background=f"분석 기술: {', '.join(topics)} / 경쟁사: {', '.join(competitors)} (mock).",
-            tech_status=f"{', '.join(topics)} 기술 현황 요약 (mock).",
             investigation_results="\n\n".join(result_blocks),
+            strategic_implications="SK하이닉스 전략적 시사점 (mock).",
             conclusion=f"{', '.join(topics)} 기반 SK하이닉스 대응 방향 요약 (mock).",
             reference=ref_entries,
         )
@@ -316,9 +304,9 @@ class DraftGenerationAgent:
         return "\n\n".join(
             [
                 "# EXECUTIVE SUMMARY\n" + sections["executive_summary"],
-                "# 1. 분석 배경\n" + sections["analysis_background"],
-                "# 2. 기술 현황\n" + sections["tech_status"],
-                "# 3. 조사 결과\n" + sections["investigation_results"],
+                "# 1. 분석 배경 및 기술 현황\n" + sections["analysis_background"],
+                "# 2. 조사 결과\n" + sections["investigation_results"],
+                "# 3. 전략적 시사점\n" + sections["strategic_implications"],
                 "# 4. 결론\n" + sections["conclusion"],
                 "# REFERENCE\n" + sections["reference"],
             ]

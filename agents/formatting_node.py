@@ -44,6 +44,7 @@ class FormattingNode:
         allow_pdf: bool = True,
         report_title: str = "",
         report_subtitle: str = "",
+        writers: list[str] | None = None,
     ) -> tuple[str, str, bool]:
         """Markdown과 PDF 산출물 경로 및 성공 여부를 반환한다."""
         print(f"[LOG] FormattingNode.export 호출: output_dir={output_dir}")
@@ -62,7 +63,7 @@ class FormattingNode:
             return str(markdown_path), "", False
 
         try:
-            self._write_pdf_from_markdown(markdown_path, pdf_path, report_title, report_subtitle)
+            self._write_pdf_from_markdown(markdown_path, pdf_path, report_title, report_subtitle, writers or [])
         except Exception as exc:
             print(f"[LOG] PDF 생성 실패: {exc}")
             if pdf_path.exists():
@@ -95,23 +96,30 @@ class FormattingNode:
     # ------------------------------------------------------------------
 
     def _write_pdf_from_markdown(
-        self, markdown_path: Path, pdf_path: Path, report_title: str, report_subtitle: str = ""
+        self,
+        markdown_path: Path,
+        pdf_path: Path,
+        report_title: str,
+        report_subtitle: str = "",
+        writers: list[str] | None = None,
     ) -> None:
         """Markdown을 전문 HTML로 변환한 후 WeasyPrint로 PDF로 저장한다."""
         markdown_text = markdown_path.read_text(encoding="utf-8")
-        html_content = self._build_html_report(markdown_text, report_title, report_subtitle)
+        html_content = self._build_html_report(markdown_text, report_title, report_subtitle, writers or [])
         HTML(string=html_content).write_pdf(str(pdf_path))
 
     # ------------------------------------------------------------------
     # HTML assembly
     # ------------------------------------------------------------------
 
-    def _build_html_report(self, markdown: str, report_title: str, report_subtitle: str = "") -> str:
+    def _build_html_report(
+        self, markdown: str, report_title: str, report_subtitle: str = "", writers: list[str] | None = None
+    ) -> str:
         """Markdown 전체를 전문 HTML 보고서로 변환한다."""
         today_str = date.today().strftime("%Y년 %m월 %d일")
         headings = self._extract_headings(markdown)
         icon_b64 = _load_icon_base64()
-        cover_html = self._build_cover_html(today_str, report_title, report_subtitle)
+        cover_html = self._build_cover_html(today_str, report_title, report_subtitle, writers or [])
         toc_html = self._build_toc_html(headings)
         body_html = self._markdown_to_html_body(markdown, headings)
         css = self._get_report_css()
@@ -148,7 +156,9 @@ class FormattingNode:
     # Cover page
     # ------------------------------------------------------------------
 
-    def _build_cover_html(self, today_str: str, report_title: str, report_subtitle: str = "") -> str:
+    def _build_cover_html(
+        self, today_str: str, report_title: str, report_subtitle: str = "", writers: list[str] | None = None
+    ) -> str:
         """표지 페이지 HTML을 생성한다.
         cover-page height = content-area 높이(247mm)로 고정해
         cover-bottom-bar가 반드시 1페이지 하단에 위치하도록 한다.
@@ -158,6 +168,15 @@ class FormattingNode:
         subtitle_html = (
             f'<div class="cover-subtitle">{report_subtitle}</div>'
             if report_subtitle
+            else ""
+        )
+        writers_row = (
+            f"""
+        <tr>
+          <td class="meta-label">작성자</td>
+          <td class="meta-value">{", ".join(writers)}</td>
+        </tr>"""
+            if writers
             else ""
         )
         return f"""
@@ -173,7 +192,7 @@ class FormattingNode:
         <tr>
           <td class="meta-label">작성일</td>
           <td class="meta-value">{today_str}</td>
-        </tr>
+        </tr>{writers_row}
       </table>
     </div>
   </div>

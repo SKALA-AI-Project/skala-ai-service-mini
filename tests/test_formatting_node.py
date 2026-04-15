@@ -12,9 +12,9 @@ class FormattingNodeTest(unittest.TestCase):
         markdown = "\n\n".join(
             [
                 "# EXECUTIVE SUMMARY\n실제 PDF 렌더링 검증을 위한 본문이다.",
-                "# 1. 분석 배경\n한글 문단이 PDF 안에 실제로 들어가야 한다.",
-                "# 2. 기술 현황\nHBM4와 PIM에 대한 실제 렌더링 테스트다.",
-                "# 3. 조사 결과\n## 3.1 Samsung\n## 3.1.1 Samsung 동향\n본문.",
+                "# 1. 분석 배경 및 기술 현황\n한글 문단이 PDF 안에 실제로 들어가야 한다. HBM4와 PIM에 대한 실제 렌더링 테스트다.",
+                "# 2. 조사 결과\n## 2.1 Samsung\n### 2.1.1 Samsung 동향\n본문.",
+                "# 3. 전략적 시사점\nSK하이닉스 전략적 방향.",
                 "# 4. 결론\n결론 문단.",
                 "# REFERENCE\n- https://www.example.org/reference",
             ]

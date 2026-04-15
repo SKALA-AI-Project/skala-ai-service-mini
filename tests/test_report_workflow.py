@@ -22,8 +22,8 @@ class ReportWorkflowE2ETest(unittest.TestCase):
 
             report_text = Path(state["final_report_md_path"]).read_text(encoding="utf-8")
             self.assertIn("# EXECUTIVE SUMMARY", report_text)
-            self.assertIn("# 1. 분석 배경", report_text)
-            self.assertIn("# 3. 조사 결과", report_text)
+            self.assertIn("# 1. 분석 배경 및 기술 현황", report_text)
+            self.assertIn("# 2. 조사 결과", report_text)
             self.assertIn("# 4. 결론", report_text)
 
     def test_supervisor_can_override_default_scope_from_query(self) -> None:
@@ -37,8 +37,8 @@ class ReportWorkflowE2ETest(unittest.TestCase):
             self.assertEqual(state["topics"], ["HBM4", "PIM"])
             self.assertEqual(state["competitors"], ["Samsung"])
             self.assertEqual(state["metadata"]["scope_source"], "query")
-            self.assertIn("## 3.1 Samsung", state["final_report_md"])
-            self.assertIn("### 3.1.2 Samsung TRL 기반 기술 성숙도", state["final_report_md"])
+            self.assertIn("## 2.1 Samsung", state["final_report_md"])
+            self.assertIn("### 2.1.2 Samsung TRL 기반 기술 성숙도", state["final_report_md"])
 
 
 class ReportWorkflowQualityScoresTest(unittest.TestCase):
@@ -85,9 +85,9 @@ class ReportWorkflowSectionCoverageTest(unittest.TestCase):
             report = Path(state["final_report_md_path"]).read_text(encoding="utf-8")
             expected_headings = [
                 "# EXECUTIVE SUMMARY",
-                "# 1. 분석 배경",
-                "# 2. 기술 현황",
-                "# 3. 조사 결과",
+                "# 1. 분석 배경 및 기술 현황",
+                "# 2. 조사 결과",
+                "# 3. 전략적 시사점",
                 "# 4. 결론",
                 "# REFERENCE",
             ]

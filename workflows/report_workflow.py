@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 import os
 from pathlib import Path
 
@@ -71,8 +72,8 @@ def build_initial_state(
         draft_content={
             "executive_summary": "",
             "analysis_background": "",
-            "tech_status": "",
             "investigation_results": "",
+            "strategic_implications": "",
             "conclusion": "",
             "reference": "",
         },
@@ -92,6 +93,7 @@ def run_report_workflow(
     output_dir: Path,
     user_query: str = "",
     use_live_api: bool = True,
+    writers: list[str] | None = None,
 ) -> WorkflowState:
     """Supervisor 중심 순차 실행 워크플로우를 수행한다."""
     print(
@@ -195,13 +197,14 @@ def run_report_workflow(
         state["draft_retry_count"] += 1
 
     print("[LOG] 포맷팅 시작")
-    report_subtitle = " · ".join(state["competitors"]) + " 경쟁 현황 분석"
+    report_subtitle = " · ".join(state["competitors"]) + " 현황 분석"
     md_path, pdf_path, export_ok = formatting_node.export(
         markdown,
         output_dir,
         allow_pdf=use_live_api,
         report_title=state["report_title"],
         report_subtitle=report_subtitle,
+        writers=writers,
     )
     state["final_report_md_path"] = md_path
     state["final_report_pdf_path"] = pdf_path
@@ -249,6 +252,7 @@ def run_report_workflow(
             allow_pdf=use_live_api,
             report_title=state["report_title"],
             report_subtitle=report_subtitle,
+            writers=writers,
         )
         state["final_report_md_path"] = md_path
         state["final_report_pdf_path"] = pdf_path
@@ -299,4 +303,26 @@ def _write_design_validation_log(output_dir: Path, validation: object) -> None:
     (logs_dir / "design_validation.md").write_text(
         "\n".join(log_lines),
         encoding="utf-8",
+    )
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="SK하이닉스 기술 전략 보고서 생성")
+    parser.add_argument("--query", default="", help="분석 쿼리 (기술·경쟁사·기간 지정)")
+    parser.add_argument("--output", default="outputs/reports", help="산출물 저장 디렉터리")
+    parser.add_argument(
+        "--writer",
+        nargs="+",
+        metavar="NAME",
+        default=[],
+        help="작성자 이름 (예: --writer 김세림 남희정 최지호)",
+    )
+    parser.add_argument("--live", action="store_true", help="실 API 사용 (기본값: 오프라인)")
+    args = parser.parse_args()
+
+    run_report_workflow(
+        output_dir=Path(args.output),
+        user_query=args.query,
+        use_live_api=args.live,
+        writers=args.writer or None,
     )
