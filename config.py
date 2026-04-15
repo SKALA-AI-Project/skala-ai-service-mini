@@ -87,8 +87,7 @@ class DraftConfig:
     required_sections: list[str] = field(
         default_factory=lambda: [
             "executive_summary",
-            "analysis_purpose",
-            "analysis_scope",
+            "analysis_background",
             "tech_status",
             "investigation_results",
             "conclusion",

@@ -70,8 +70,7 @@ def build_initial_state(
         trl_assessment={},
         draft_content={
             "executive_summary": "",
-            "analysis_purpose": "",
-            "analysis_scope": "",
+            "analysis_background": "",
             "tech_status": "",
             "investigation_results": "",
             "conclusion": "",

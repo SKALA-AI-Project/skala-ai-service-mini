@@ -22,8 +22,7 @@ class DraftSectionsOutput(BaseModel):
     """
 
     executive_summary: str = Field(description="EXECUTIVE SUMMARY 본문")
-    analysis_purpose: str = Field(description="분석 목적 본문")
-    analysis_scope: str = Field(description="분석 범위 본문")
+    analysis_background: str = Field(description="분석 배경 본문 (목적·범위 통합)")
     tech_status: str = Field(description="기술 현황 본문")
     investigation_results: str = Field(description="경쟁사별 조사 결과 본문")
     conclusion: str = Field(description="결론 본문")
@@ -148,8 +147,7 @@ class DraftGenerationAgent:
         )
         sections = ReportSections(
             executive_summary=llm_sections.executive_summary,
-            analysis_purpose=llm_sections.analysis_purpose,
-            analysis_scope=llm_sections.analysis_scope,
+            analysis_background=llm_sections.analysis_background,
             tech_status=llm_sections.tech_status,
             investigation_results=llm_sections.investigation_results,
             conclusion=llm_sections.conclusion,
@@ -189,24 +187,18 @@ class DraftGenerationAgent:
             ),
             self._exec_sum_min,
         )[: self._exec_sum_max]
-        analysis_purpose = self._ensure_min_length(
+        analysis_background = self._ensure_min_length(
             (
-                f"분석 목적은 {', '.join(topics)} 영역에서 {', '.join(competitors)}의 기술 추진 방향, 양산 신호, 공개 발표의 질을 정리하고 "
-                "SK하이닉스가 어떤 기술에 즉시 대응해야 하며 어떤 기술은 중장기 추적 대상으로 볼지 판단하는 데 있다. "
-                "특히 고성능 메모리와 차세대 메모리 아키텍처는 단순 기술 개발을 넘어 고객사 채택, 공급망 대응, 생산 능력 확대와 연결되므로, "
-                "기사 하나의 톤보다 반복적으로 관측되는 공개 신호의 성격이 중요하다. "
-                "이 보고서는 검색 근거를 단순 요약하는 수준을 넘어서 기술 성숙도와 전략적 위협 수준을 실무적으로 해석하는 것을 목적으로 한다."
-            ),
-            self._section_min,
-        )
-        analysis_scope = self._ensure_min_length(
-            (
+                f"본 분석은 {', '.join(topics)} 영역에서 {', '.join(competitors)}의 기술 추진 방향, 양산 신호, 공개 발표의 질을 정리하고 "
+                "SK하이닉스가 어떤 기술에 즉시 대응해야 하며 어떤 기술은 중장기 추적 대상으로 볼지 판단하는 데 목적이 있다. "
+                "특히 고성능 메모리와 차세대 메모리 아키텍처는 단순 기술 개발을 넘어 고객사 채택, 공급망 대응, 생산 능력 확대와 연결되므로 "
+                "반복적으로 관측되는 공개 신호의 성격을 중심으로 분석한다. "
                 f"분석 범위는 기술적으로 {', '.join(topics)}이며, 경쟁사 범위는 {', '.join(competitors)}로 한정한다. "
                 "시간 범위는 사용자 요청 기준 최근 공개 자료를 우선 반영하며, 자료 유형은 기업 공식 발표, 일반 뉴스, "
                 "리스크 관점 검색 결과, 기술 동향 기사 등을 포함한다. "
-                "또한 각 기술에 대해 단순 제품 출시 여부만이 아니라 양산·출하 신호, 고객사 적용 가능성, 성능 수치, "
-                "제조 전략, 기사 맥락에서 드러나는 위험 요소까지 함께 검토한다. "
-                "본 보고서는 지정되지 않은 기술과 경쟁사를 확장하지 않고, 요청 범위 안에서 실질적인 전략 판단에 필요한 정보만 구조화한다."
+                "각 기술에 대해 단순 제품 출시 여부만이 아니라 양산·출하 신호, 고객사 적용 가능성, 성능 수치, "
+                "제조 전략, 기사 맥락에서 드러나는 위험 요소까지 함께 검토하며, "
+                "지정되지 않은 기술과 경쟁사를 확장하지 않고 요청 범위 안에서 실질적인 전략 판단에 필요한 정보만 구조화한다."
             ),
             self._section_min,
         )
@@ -277,8 +269,7 @@ class DraftGenerationAgent:
 
         sections = ReportSections(
             executive_summary=executive_summary,
-            analysis_purpose=analysis_purpose,
-            analysis_scope=analysis_scope,
+            analysis_background=analysis_background,
             tech_status=tech_status,
             investigation_results="\n\n".join(result_blocks),
             conclusion=conclusion,
@@ -294,12 +285,7 @@ class DraftGenerationAgent:
         return "\n\n".join(
             [
                 "# EXECUTIVE SUMMARY\n" + sections["executive_summary"],
-                "# 1. 분석 배경\n"
-                + "## 1.1 분석 목적\n"
-                + sections["analysis_purpose"]
-                + "\n\n"
-                + "## 1.2 분석 범위\n"
-                + sections["analysis_scope"],
+                "# 1. 분석 배경\n" + sections["analysis_background"],
                 "# 2. 기술 현황\n" + sections["tech_status"],
                 "# 3. 조사 결과\n" + sections["investigation_results"],
                 "# 4. 결론\n" + sections["conclusion"],

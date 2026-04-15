@@ -21,9 +21,10 @@ DRAFT_USER_PROMPT_TEMPLATE = """
 
 목차 규칙:
 - # EXECUTIVE SUMMARY: {exec_sum_min}~{exec_sum_max}자
-- # 1. 분석 배경
-- ## 1.1 분석 목적: 최소 {section_min}자
-- ## 1.2 분석 범위: 최소 {section_min}자
+- # 1. 분석 배경: 최소 {section_min}자
+  (분석 목적과 분석 범위를 하나의 섹션으로 통합하여 서술한다.
+   예시 구성: "본 분석은 {{기술}} 영역에서 {{경쟁사}}의 기술 추진 방향을 정리하고...
+   분석 범위는 기술적으로 {{기술}}이며, 경쟁사 범위는 {{경쟁사}}로 한정한다...")
 - # 2. 기술 현황: 최소 {section_min}자
 - # 3. 조사 결과
 {competitor_sections_spec}

@@ -22,7 +22,7 @@ class ReportWorkflowE2ETest(unittest.TestCase):
 
             report_text = Path(state["final_report_md_path"]).read_text(encoding="utf-8")
             self.assertIn("# EXECUTIVE SUMMARY", report_text)
-            self.assertIn("## 1.1 분석 목적", report_text)
+            self.assertIn("# 1. 분석 배경", report_text)
             self.assertIn("# 3. 조사 결과", report_text)
             self.assertIn("# 4. 결론", report_text)
 
@@ -88,8 +88,6 @@ class ReportWorkflowSectionCoverageTest(unittest.TestCase):
             expected_headings = [
                 "# EXECUTIVE SUMMARY",
                 "# 1. 분석 배경",
-                "## 1.1 분석 목적",
-                "## 1.2 분석 범위",
                 "# 2. 기술 현황",
                 "# 3. 조사 결과",
                 "# 4. 결론",

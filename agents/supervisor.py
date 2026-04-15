@@ -23,8 +23,7 @@ class SupervisorAgent:
 
     required_sections = [
         "executive_summary",
-        "analysis_purpose",
-        "analysis_scope",
+        "analysis_background",
         "tech_status",
         "investigation_results",
         "conclusion",
