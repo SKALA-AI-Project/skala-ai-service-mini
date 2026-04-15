@@ -24,8 +24,8 @@ class SupervisorAgent:
     required_sections = [
         "executive_summary",
         "analysis_background",
-        "tech_status",
         "investigation_results",
+        "strategic_implications",
         "conclusion",
         "reference",
     ]
@@ -225,4 +225,87 @@ class SupervisorAgent:
                 f"참고문헌 URL 부족: {url_count}개 (최소 {min_urls}개 필요)"
             )
 
+        # 챕터별 경쟁사·기술 키워드 커버리지 검증
+        final_md = state.get("final_report_md", "")
+        if final_md:
+            missing_items.extend(
+                self._validate_section_coverage(
+                    final_md,
+                    topics=state["topics"],
+                    competitors=state["competitors"],
+                )
+            )
+
         return ValidationResult(passed=not missing_items, missing_items=missing_items)
+
+    # ------------------------------------------------------------------
+    # 섹션별 커버리지 헬퍼
+    # ------------------------------------------------------------------
+
+    def _parse_markdown_sections(self, markdown: str) -> dict[str, str]:
+        """Markdown을 H1 헤딩 기준으로 섹션별 본문을 반환한다.
+        섹션 제목에서 번호 접두사(예: '1. ')를 제거하여 키로 사용한다.
+        """
+        sections: dict[str, str] = {}
+        current_title: str | None = None
+        current_lines: list[str] = []
+
+        for line in markdown.splitlines():
+            if line.startswith("# "):
+                if current_title is not None:
+                    sections[current_title] = "\n".join(current_lines)
+                raw = line[2:].strip()
+                title = re.sub(r"^\d+\.\s+", "", raw)
+                current_title = title
+                current_lines = []
+            elif current_title is not None:
+                current_lines.append(line)
+
+        if current_title is not None:
+            sections[current_title] = "\n".join(current_lines)
+        return sections
+
+    def _validate_section_coverage(
+        self,
+        markdown: str,
+        topics: list[str],
+        competitors: list[str],
+    ) -> list[str]:
+        """각 주요 챕터에 경쟁사와 기술 키워드가 균등하게 포함됐는지 검증한다."""
+        missing: list[str] = []
+        sections = self._parse_markdown_sections(markdown)
+
+        # 경쟁사·기술을 모두 균등하게 포함해야 하는 챕터
+        chapters_requiring_balance = [
+            "EXECUTIVE SUMMARY",
+            "분석 배경 및 기술 현황",
+            "전략적 시사점",
+            "결론",
+        ]
+
+        for chapter in chapters_requiring_balance:
+            content = sections.get(chapter, "").lower()
+            if not content:
+                continue
+
+            for competitor in competitors:
+                if competitor.lower() not in content:
+                    missing.append(
+                        f"커버리지 미달: '{chapter}' 챕터에 {competitor} 미언급"
+                    )
+
+            for topic in topics:
+                if topic.lower() not in content:
+                    missing.append(
+                        f"커버리지 미달: '{chapter}' 챕터에 {topic} 미언급"
+                    )
+
+        # 조사 결과 챕터: 각 경쟁사 소섹션 존재 여부
+        investigation = sections.get("조사 결과", "")
+        for competitor in competitors:
+            if competitor not in investigation:
+                missing.append(
+                    f"커버리지 미달: '조사 결과' 챕터에 {competitor} 소섹션 누락"
+                )
+
+        return missing
