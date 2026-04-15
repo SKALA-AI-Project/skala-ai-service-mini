@@ -18,7 +18,12 @@ class WebSearchAgent:
     def __init__(self, config: RuntimeConfig) -> None:
         self.config = config
         self.search_config = config.search
-        self.client = TavilyClient(api_key=config.tavily_api_key) if config.tavily_api_key else None
+        # use_live_api=False 환경(테스트·오프라인)에서는 Tavily 클라이언트를 생성하지 않는다.
+        self.client = (
+            TavilyClient(api_key=config.tavily_api_key)
+            if config.use_live_api and config.tavily_api_key
+            else None
+        )
 
     def build_date_range(self) -> dict[str, str]:
         """최근 3개월 기준 날짜 범위를 생성한다."""
@@ -33,15 +38,16 @@ class WebSearchAgent:
         competitors: list[str],
         date_range: dict[str, str],
     ) -> tuple[list[SearchResult], dict[str, int], bool]:
-        """검색 결과와 검색 품질 점수를 함께 반환한다."""
+        """검색 결과와 검색 품질 점수를 함께 반환한다.
+        Tavily API 클라이언트가 없으면 빈 결과를 반환하고 HITL이 처리하도록 한다.
+        """
         print(
             "[LOG] WebSearchAgent.collect 호출:"
-            f" topics={topics}, competitors={competitors},"
-            f" use_live_api={self.config.use_live_api}"
+            f" topics={topics}, competitors={competitors}"
         )
-        if not self.config.use_live_api or not self.client:
-            print("[LOG] WebSearchAgent mock 경로 사용")
-            return self._collect_mock_results(topics, competitors, date_range)
+        if not self.client:
+            print("[LOG] Tavily API 키 없음 — 빈 결과 반환 (HITL로 처리)")
+            return [], {"search_richness": 0, "bias_score": 0}, False
 
         return self._collect_live_results(topics, competitors, date_range)
 
@@ -60,6 +66,10 @@ class WebSearchAgent:
         results: list[SearchResult] = []
         domain_cap: dict[str, int] = {}
 
+        # date_range["from"] 기준으로 검색 일수를 계산한다 (최소 1일, 최대 365일)
+        from_date = date.fromisoformat(date_range["from"])
+        search_days = max(1, min(365, (date.today() - from_date).days))
+
         for tech in topics:
             for company in competitors:
                 for perspective, suffix in self.search_config.perspectives.items():
@@ -68,7 +78,7 @@ class WebSearchAgent:
                         response = self.client.search(
                             query=query,
                             topic="news",
-                            days=90,
+                            days=search_days,
                             max_results=5,
                             include_raw_content=True,
                         )
@@ -117,67 +127,6 @@ class WebSearchAgent:
             f" results={len(results)}, scores={scores}, bias_check={bias_check}"
         )
         return results, scores, bias_check
-
-    def _collect_mock_results(
-        self,
-        topics: list[str],
-        competitors: list[str],
-        date_range: dict[str, str],
-    ) -> tuple[list[SearchResult], dict[str, int], bool]:
-        """테스트와 로컬 개발을 위한 대체 경로다. 실서비스 경로에서는 호출하지 않는다."""
-        results: list[SearchResult] = []
-        source_types = list(self.search_config.source_type_rules.keys())
-
-        for tech in topics:
-            for company in competitors:
-                for index, (perspective, suffix) in enumerate(self.search_config.perspectives.items()):
-                    results.append(
-                        self._build_mock_result(
-                            tech=tech,
-                            company=company,
-                            perspective=perspective,
-                            suffix=suffix,
-                            source_type=source_types[index % len(source_types)],
-                            published_date=date_range["to"],
-                        )
-                    )
-
-        scores = self._score_results(results)
-        bias_check = (
-            scores["bias_score"] >= self.search_config.bias_score_threshold
-            and scores["search_richness"] >= self.search_config.search_richness_threshold
-        )
-        print(
-            "[LOG] mock 검색 결과 생성:"
-            f" results={len(results)}, scores={scores}, bias_check={bias_check}"
-        )
-        return results, scores, bias_check
-
-    def _build_mock_result(
-        self,
-        tech: str,
-        company: str,
-        perspective: str,
-        suffix: str,
-        source_type: str,
-        published_date: str,
-    ) -> SearchResult:
-        """설계 검증용 모의 검색 결과를 표준 형태로 만든다."""
-        query = build_query(company, tech, suffix)
-        return SearchResult(
-            query=query,
-            title=f"{company} {tech} {suffix}",
-            url=f"https://example.com/{company.lower()}/{tech.lower()}/{perspective}",
-            content=(
-                f"{company}의 {tech} 관련 최근 동향을 {perspective} 관점에서 요약한 결과다. "
-                "실제 API 연동 전까지는 설계 검증용 모의 데이터로 사용된다."
-            ),
-            perspective=perspective,  # type: ignore[arg-type]
-            source_type=source_type,  # type: ignore[arg-type]
-            published_date=published_date,
-            company=company,
-            tech=tech,
-        )
 
     def _classify_source_type(self, url: str, title: str, content: str) -> str:
         """config의 source_type_rules를 기준으로 소스 유형을 추정한다."""

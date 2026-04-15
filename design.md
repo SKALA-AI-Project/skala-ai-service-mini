@@ -335,7 +335,8 @@ Web Search Agent 실행 시
 ### 4.2.4 Draft Generation Agent
 
 - **하는 일** : TRL Analysis Node 출력 JSON과 수집 문서를 바탕으로 보고서 **7개 섹션** 초안을 작성. LLM 기반 quality_scores로 자체 검증 수행
-- **7개 섹션 구성** : summary / background / tech_status / competitor / trl_assessment / insight / reference
+- **6개 섹션 구성** : executive_summary / analysis_background / tech_status / investigation_results / conclusion / reference
+  (# 3. 조사 결과 내부: 경쟁사별 동향 + TRL 기반 기술 성숙도 + 통합 전략적 시사점)
 - **draft 품질 평가 기준**
 
 | 점수 | summary_score (요약 완결성) | coverage_score (섹션 완결도) | evidence_score (근거 명시) | consistency_score (내부 일관성) |
@@ -449,13 +450,12 @@ class State(TypedDict):
     #  "PIM":  {...}, "CXL": {...}}
 
     # Draft Generation Agent (T4)
-    draft_content: Dict[str, str]       # 7개 섹션별 초안
-                                        # {"summary": ...,
-                                        #  "background": ...,
+    draft_content: Dict[str, str]       # 6개 섹션별 초안
+                                        # {"executive_summary": ...,
+                                        #  "analysis_background": ...,
                                         #  "tech_status": ...,
-                                        #  "competitor": ...,
-                                        #  "trl_assessment": ...,
-                                        #  "insight": ...,
+                                        #  "investigation_results": ...,
+                                        #  "conclusion": ...,
                                         #  "reference": ...}
     draft_retry_count: int              # 초안 재작성 횟수 (max 2)
     quality_scores: Dict[str, int]      # 다차원 품질 점수

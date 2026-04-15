@@ -59,8 +59,8 @@ class TrlConfig:
     )
     hiring_keywords: list[str] = field(
         default_factory=lambda: [
-            "engineer", "엔지니어", "수율", "yield", "공정", "process",
-            "양산", "manufacturing", "production engineer", "채용", "모집",
+            "engineer", "엔지니어", "recruit", "hiring", "job",
+            "채용", "모집", "인재", "포지션",
         ]
     )
     partnership_keywords: list[str] = field(

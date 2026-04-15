@@ -172,6 +172,8 @@ def run_report_workflow(
         sections, draft_scores, markdown = draft_agent.generate(
             state["search_results"],
             state["trl_assessment"],
+            fallback_topics=state["topics"],
+            fallback_competitors=state["competitors"],
         )
         state["draft_content"] = sections
         state["quality_scores"].update(draft_scores)
@@ -230,6 +232,8 @@ def run_report_workflow(
         sections, draft_scores, markdown = draft_agent.generate(
             state["search_results"],
             state["trl_assessment"],
+            fallback_topics=state["topics"],
+            fallback_competitors=state["competitors"],
         )
         state["draft_content"] = sections
         state["quality_scores"].update(draft_scores)

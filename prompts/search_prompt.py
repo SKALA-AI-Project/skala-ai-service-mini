@@ -18,5 +18,7 @@ SYSTEM_PROMPT = (
 
 
 def build_query(company: str, tech: str, perspective_suffix: str) -> str:
-    """기업·기술·관점 조합으로 검색 쿼리를 생성한다."""
-    return f"{company} {tech} {perspective_suffix}"
+    """기업·기술·관점 조합으로 검색 쿼리를 생성한다.
+    반도체 맥락 키워드를 추가해 PIM 등 약어 충돌을 방지한다.
+    """
+    return f"{company} {tech} semiconductor memory {perspective_suffix}"

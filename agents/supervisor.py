@@ -115,13 +115,15 @@ class SupervisorAgent:
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=60,
-            temperature=0.3,
+            temperature=0.1,
         )
         title = response.choices[0].message.content.strip().strip("\"'「」『』")
         return title or f"{tech_str} 기반 기술 경쟁력 보고서"
 
     def validate_search_coverage(self, state: WorkflowState) -> ValidationResult:
-        """모든 기술과 경쟁사가 검색 결과에 포함됐는지 확인한다."""
+        """모든 기술과 경쟁사가 검색 결과에 포함됐는지 확인한다.
+        기술별 최소 수집 건수(3건)도 함께 검증한다.
+        """
         pairs = {(item["tech"], item["company"]) for item in state["search_results"]}
         missing_items: list[str] = []
 
@@ -129,6 +131,12 @@ class SupervisorAgent:
             for company in state["competitors"]:
                 if (tech, company) not in pairs:
                     missing_items.append(f"검색 누락: {tech} / {company}")
+
+        # 기술별 최소 수집 건수 검증 (기술당 최소 3건)
+        for tech in state["topics"]:
+            tech_count = sum(1 for item in state["search_results"] if item["tech"] == tech)
+            if tech_count < 3:
+                missing_items.append(f"기술별 최소 수집 미달: {tech} ({tech_count}건 < 3건)")
 
         return ValidationResult(passed=not missing_items, missing_items=missing_items)
 
@@ -154,7 +162,11 @@ class SupervisorAgent:
         return ValidationResult(passed=not missing_items, missing_items=missing_items)
 
     def validate_design_mapping(self, state: WorkflowState) -> ValidationResult:
-        """design.md의 핵심 요구사항과 구현 결과를 1:1로 대조한다."""
+        """design.md의 핵심 요구사항과 구현 결과를 1:1로 대조한다.
+        최신성(최근 90일 자료 비율)과 참고문헌 URL 수도 검증한다.
+        """
+        from datetime import date, timedelta
+
         missing_items: list[str] = []
 
         scope_source = str(state["metadata"].get("scope_source", "default"))
@@ -189,5 +201,28 @@ class SupervisorAgent:
         }
         if not required_quality_keys.issubset(set(quality_scores)):
             missing_items.append("설계 불일치: 품질 점수 일부 누락")
+
+        # 최신성 검증: 최근 90일 이내 자료가 전체의 50% 이상이어야 한다
+        search_results = state.get("search_results", [])
+        if search_results:
+            cutoff = (date.today() - timedelta(days=90)).isoformat()
+            recent_count = sum(
+                1 for item in search_results
+                if item.get("published_date", "") >= cutoff
+            )
+            total = len(search_results)
+            if recent_count / total < 0.5:
+                missing_items.append(
+                    f"최신성 미달: 최근 90일 자료 비율 {recent_count}/{total} (50% 미만)"
+                )
+
+        # 참고문헌 URL 수 검증: 검색결과 수의 1/3 이상이어야 한다
+        reference_text = state.get("draft_content", {}).get("reference", "")
+        url_count = reference_text.count("http")
+        min_urls = max(3, len(search_results) // 3) if search_results else 3
+        if url_count < min_urls:
+            missing_items.append(
+                f"참고문헌 URL 부족: {url_count}개 (최소 {min_urls}개 필요)"
+            )
 
         return ValidationResult(passed=not missing_items, missing_items=missing_items)

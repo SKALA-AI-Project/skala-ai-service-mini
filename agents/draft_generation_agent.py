@@ -7,24 +7,41 @@ from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from config import RuntimeConfig
-from prompts.draft_prompt import DRAFT_SYSTEM_PROMPT, DRAFT_USER_PROMPT_TEMPLATE
+from prompts.draft_prompt import (
+    COMPETITOR_SECTION_SYSTEM_PROMPT,
+    COMPETITOR_SECTION_USER_PROMPT_TEMPLATE,
+    DRAFT_SYSTEM_PROMPT,
+    DRAFT_USER_PROMPT_TEMPLATE,
+    STRATEGIC_IMPLICATIONS_SYSTEM_PROMPT,
+    STRATEGIC_IMPLICATIONS_USER_PROMPT_TEMPLATE,
+)
 from prompts.quality_prompt import QUALITY_SYSTEM_PROMPT, QUALITY_USER_PROMPT_TEMPLATE
 from schemas.report_sections import ReportSections
 from schemas.search_result import SearchResult
 from schemas.trl_assessment import TrlAssessment
 
 
-class DraftSectionsOutput(BaseModel):
-    """LLM이 반환해야 하는 보고서 섹션 구조.
-    각 섹션의 분량 요건은 프롬프트(DRAFT_USER_PROMPT_TEMPLATE)에서 주입된다.
-    """
+class DraftFrameOutput(BaseModel):
+    """조사 결과를 제외한 보고서 프레임 섹션 구조."""
 
     executive_summary: str = Field(description="EXECUTIVE SUMMARY 본문")
     analysis_background: str = Field(description="분석 배경 본문 (목적·범위 통합)")
     tech_status: str = Field(description="기술 현황 본문")
-    investigation_results: str = Field(description="경쟁사별 조사 결과 본문")
     conclusion: str = Field(description="결론 본문")
     reference: str = Field(description="URL 기반 참고문헌 목록")
+
+
+class CompetitorSectionOutput(BaseModel):
+    """경쟁사 한 곳의 조사 결과 2개 소섹션 구조."""
+
+    trend: str = Field(description="동향 본문")
+    trl_assessment: str = Field(description="TRL 기반 기술 성숙도 본문")
+
+
+class StrategicImplicationsOutput(BaseModel):
+    """전체 경쟁사를 통합한 SK하이닉스 전략적 시사점."""
+
+    strategic_implications: str = Field(description="SK하이닉스 전략적 시사점 통합 본문")
 
 
 class DraftScoreOutput(BaseModel):
@@ -49,7 +66,7 @@ class DraftGenerationAgent:
             ChatOpenAI(
                 api_key=config.openai_api_key,
                 model=config.draft_model,
-                temperature=0.2,
+                temperature=0.1,
             )
             if config.openai_api_key
             else None
@@ -58,7 +75,7 @@ class DraftGenerationAgent:
             ChatOpenAI(
                 api_key=config.openai_api_key,
                 model=config.judge_model,
-                temperature=0.0,
+                temperature=0.1,
             )
             if config.openai_api_key
             else None
@@ -69,8 +86,12 @@ class DraftGenerationAgent:
         self,
         search_results: list[SearchResult],
         assessments: dict[str, dict[str, TrlAssessment]],
+        fallback_topics: list[str] | None = None,
+        fallback_competitors: list[str] | None = None,
     ) -> tuple[ReportSections, dict[str, int], str]:
-        """보고서 섹션, 품질 점수, 전체 Markdown 문자열을 반환한다."""
+        """보고서 섹션, 품질 점수, 전체 Markdown 문자열을 반환한다.
+        검색 결과가 없을 때 fallback_topics/competitors로 스켈레톤을 구성한다.
+        """
         print(
             "[LOG] 초안 생성 시작:"
             f" search_results={len(search_results)},"
@@ -82,74 +103,127 @@ class DraftGenerationAgent:
                 f" draft_model={self.config.draft_model},"
                 f" judge_model={self.config.judge_model}"
             )
-            return self._generate_with_llm(search_results, assessments)
+            return self._generate_with_llm(
+                search_results, assessments,
+                fallback_topics=fallback_topics,
+                fallback_competitors=fallback_competitors,
+            )
         print("[LOG] DraftGenerationAgent 규칙 기반 경로 사용")
-        return self._generate_with_rules(search_results, assessments)
+        return self._generate_with_rules(
+            search_results, assessments,
+            fallback_topics=fallback_topics,
+            fallback_competitors=fallback_competitors,
+        )
 
     def _generate_with_llm(
         self,
         search_results: list[SearchResult],
         assessments: dict[str, dict[str, TrlAssessment]],
+        fallback_topics: list[str] | None = None,
+        fallback_competitors: list[str] | None = None,
     ) -> tuple[ReportSections, dict[str, int], str]:
-        """최신 LangChain + OpenAI 구조화 출력을 사용해 초안을 생성한다."""
+        """프레임 섹션 1회 호출 + 경쟁사별 조사 결과 개별 호출로 초안을 생성한다."""
         assert self.draft_llm is not None
 
-        topics = list(assessments.keys())
+        topics = list(assessments.keys()) or (fallback_topics or [])
         competitors = sorted(
             {
                 company
                 for company_map in assessments.values()
                 for company in company_map.keys()
             }
-        )
+        ) or sorted(fallback_competitors or [])
 
-        evidence_lines = []
-        for item in search_results:
-            evidence_lines.append(
-                f"- 기술={item['tech']} / 기업={item['company']} / 관점={item['perspective']} "
-                f"/ 출처유형={item['source_type']} / 제목={item['title']} / "
-                f"URL={item['url']} / 내용={item['content'][:1200]}"
-            )
+        # ── 1단계: 프레임 섹션 생성 (조사 결과 제외) ────────────────────
+        all_evidence = self._build_evidence_lines(search_results)
+        all_trl = self._build_trl_lines(assessments)
 
-        trl_lines = []
-        for tech, company_map in assessments.items():
-            for company, assessment in company_map.items():
-                trl_lines.append(
-                    f"- {tech} / {company}: TRL={assessment['trl']}, "
-                    f"basis={assessment['basis']}, confidence={assessment['confidence']}, "
-                    f"evidence={'; '.join(assessment['evidence'])}, "
-                    f"limitation={assessment['limitation']}"
-                )
-
-        prompt = ChatPromptTemplate.from_messages(
+        frame_prompt = ChatPromptTemplate.from_messages(
             [
                 ("system", DRAFT_SYSTEM_PROMPT),
                 ("human", DRAFT_USER_PROMPT_TEMPLATE),
             ]
         )
-
-        competitor_sections_spec = self._build_competitor_sections_spec(competitors)
-
-        chain = prompt | self.draft_llm.with_structured_output(DraftSectionsOutput)
-        llm_sections = chain.invoke(
+        frame_chain = frame_prompt | self.draft_llm.with_structured_output(DraftFrameOutput)
+        frame = frame_chain.invoke(
             {
                 "topic_scope": ", ".join(topics),
                 "competitor_scope": ", ".join(competitors),
-                "evidence_block": "\n".join(evidence_lines),
-                "trl_block": "\n".join(trl_lines),
+                "evidence_block": "\n".join(all_evidence),
+                "trl_block": "\n".join(all_trl),
                 "exec_sum_min": self._exec_sum_min,
                 "exec_sum_max": self._exec_sum_max,
                 "section_min": self._section_min,
-                "competitor_sections_spec": competitor_sections_spec,
             }
         )
+        print(f"[LOG] 프레임 섹션 생성 완료")
+
+        # ── 2단계: 경쟁사별 조사 결과 개별 호출 ────────────────────────
+        competitor_blocks: list[str] = []
+        comp_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", COMPETITOR_SECTION_SYSTEM_PROMPT),
+                ("human", COMPETITOR_SECTION_USER_PROMPT_TEMPLATE),
+            ]
+        )
+        comp_chain = comp_prompt | self.draft_llm.with_structured_output(CompetitorSectionOutput)
+
+        for index, competitor in enumerate(competitors, start=1):
+            comp_evidence = self._build_evidence_lines(
+                [r for r in search_results if r["company"] == competitor]
+            )
+            comp_trl = self._build_trl_lines(
+                {tech: {competitor: company_map[competitor]}
+                 for tech, company_map in assessments.items()
+                 if competitor in company_map}
+            )
+            comp_section = comp_chain.invoke(
+                {
+                    "competitor": competitor,
+                    "topic_scope": ", ".join(topics),
+                    "section_min": self._section_min,
+                    "evidence_block": "\n".join(comp_evidence),
+                    "trl_block": "\n".join(comp_trl),
+                }
+            )
+            competitor_blocks.append(
+                f"## 3.{index} {competitor}\n\n"
+                f"### 3.{index}.1 {competitor} 동향\n{comp_section.trend}\n\n"
+                f"### 3.{index}.2 {competitor} TRL 기반 기술 성숙도\n{comp_section.trl_assessment}"
+            )
+            print(f"[LOG] {competitor} 조사 결과 섹션 생성 완료")
+
+        # ── 3단계: 전략적 시사점 통합 호출 ──────────────────────────────
+        strat_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", STRATEGIC_IMPLICATIONS_SYSTEM_PROMPT),
+                ("human", STRATEGIC_IMPLICATIONS_USER_PROMPT_TEMPLATE),
+            ]
+        )
+        strat_chain = strat_prompt | self.draft_llm.with_structured_output(StrategicImplicationsOutput)
+        strat_section = strat_chain.invoke(
+            {
+                "topic_scope": ", ".join(topics),
+                "competitor_scope": ", ".join(competitors),
+                "section_min": self._section_min,
+                "evidence_block": "\n".join(all_evidence),
+                "trl_block": "\n".join(all_trl),
+            }
+        )
+        unified_strat_index = len(competitors) + 1
+        competitor_blocks.append(
+            f"## 3.{unified_strat_index} 전략적 시사점\n\n"
+            f"{strat_section.strategic_implications}"
+        )
+        print(f"[LOG] 전략적 시사점 통합 섹션 생성 완료")
+
         sections = ReportSections(
-            executive_summary=llm_sections.executive_summary,
-            analysis_background=llm_sections.analysis_background,
-            tech_status=llm_sections.tech_status,
-            investigation_results=llm_sections.investigation_results,
-            conclusion=llm_sections.conclusion,
-            reference=llm_sections.reference,
+            executive_summary=frame.executive_summary,
+            analysis_background=frame.analysis_background,
+            tech_status=frame.tech_status,
+            investigation_results="\n\n".join(competitor_blocks),
+            conclusion=frame.conclusion,
+            reference=frame.reference,
         )
         markdown = self._to_markdown(sections)
         markdown = self._enforce_scope(markdown, topics, competitors)
@@ -157,21 +231,49 @@ class DraftGenerationAgent:
         print(f"[LOG] LLM 초안 생성 완료: draft_scores={scores}")
         return sections, scores, markdown
 
+    def _build_evidence_lines(self, search_results: list[SearchResult]) -> list[str]:
+        """검색 결과를 프롬프트용 텍스트 라인으로 변환한다."""
+        return [
+            f"- 기술={item['tech']} / 기업={item['company']} / 관점={item['perspective']} "
+            f"/ 출처유형={item['source_type']} / 제목={item['title']} / "
+            f"URL={item['url']} / 내용={item['content'][:1200]}"
+            for item in search_results
+        ]
+
+    def _build_trl_lines(
+        self, assessments: dict[str, dict[str, TrlAssessment]]
+    ) -> list[str]:
+        """TRL 평가를 프롬프트용 텍스트 라인으로 변환한다."""
+        lines = []
+        for tech, company_map in assessments.items():
+            for company, assessment in company_map.items():
+                lines.append(
+                    f"- {tech} / {company}: TRL={assessment['trl']}, "
+                    f"basis={assessment['basis']}, confidence={assessment['confidence']}, "
+                    f"evidence={'; '.join(assessment['evidence'])}, "
+                    f"limitation={assessment['limitation']}"
+                )
+        return lines
+
     def _generate_with_rules(
         self,
         search_results: list[SearchResult],
         assessments: dict[str, dict[str, TrlAssessment]],
+        fallback_topics: list[str] | None = None,
+        fallback_competitors: list[str] | None = None,
     ) -> tuple[ReportSections, dict[str, int], str]:
         """테스트·오프라인 환경용 최소 구조 스켈레톤을 반환한다.
-        실제 내용 생성은 _generate_with_llm(gpt-4o)이 담당한다."""
-        topics = list(assessments.keys())
+        실제 내용 생성은 _generate_with_llm(gpt-4o)이 담당한다.
+        assessments가 비어 있으면 fallback_topics/competitors로 스켈레톤을 구성한다.
+        """
+        topics = list(assessments.keys()) or (fallback_topics or [])
         competitors = sorted(
             {
                 company
                 for company_map in assessments.values()
                 for company in company_map.keys()
             }
-        )
+        ) or sorted(fallback_competitors or [])
 
         result_blocks: list[str] = []
         for index, competitor in enumerate(competitors, start=1):
@@ -184,9 +286,17 @@ class DraftGenerationAgent:
                 f"## 3.{index} {competitor}\n\n"
                 f"### 3.{index}.1 {competitor} 동향\n{competitor} 동향 (mock).\n\n"
                 f"### 3.{index}.2 {competitor} TRL 기반 기술 성숙도\n"
-                + "\n".join(trl_lines) + "\n\n"
-                + f"### 3.{index}.3 {competitor} 전략적 시사점\n{competitor} 전략적 시사점 (mock)."
+                + "\n".join(trl_lines)
             )
+        unified_strat_index = len(competitors) + 1
+        result_blocks.append(
+            f"## 3.{unified_strat_index} 전략적 시사점\n\n"
+            f"SK하이닉스 전략적 시사점 (mock)."
+        )
+
+        ref_entries = "\n".join(
+            f"- [{item['title']}]({item['url']})" for item in search_results
+        ) or "- (검색 결과 없음 — API 키 필요)"
 
         sections = ReportSections(
             executive_summary=f"{', '.join(topics)} 기술 대상 {', '.join(competitors)} 분석 요약 (mock).",
@@ -194,9 +304,7 @@ class DraftGenerationAgent:
             tech_status=f"{', '.join(topics)} 기술 현황 요약 (mock).",
             investigation_results="\n\n".join(result_blocks),
             conclusion=f"{', '.join(topics)} 기반 SK하이닉스 대응 방향 요약 (mock).",
-            reference="\n".join(
-                f"- [{item['title']}]({item['url']})" for item in search_results
-            ),
+            reference=ref_entries,
         )
         markdown = self._to_markdown(sections)
         scores = self._score_with_rules(sections, search_results)
@@ -255,18 +363,6 @@ class DraftGenerationAgent:
             "evidence_score": evidence_score,
             "consistency_score": consistency_score,
         }
-
-    def _build_competitor_sections_spec(self, competitors: list[str]) -> str:
-        """LLM 프롬프트에 주입할 경쟁사별 섹션 목차 명세를 동적으로 생성한다."""
-        lines: list[str] = []
-        for i, competitor in enumerate(competitors, start=1):
-            lines += [
-                f"- ## 3.{i} {competitor}",
-                f"- ### 3.{i}.1 {competitor} 동향: 최소 {self._section_min}자",
-                f"- ### 3.{i}.2 {competitor} TRL 기반 기술 성숙도: 최소 {self._section_min}자",
-                f"- ### 3.{i}.3 {competitor} 전략적 시사점: 최소 {self._section_min}자",
-            ]
-        return "\n".join(lines)
 
     def _enforce_scope(
         self,
