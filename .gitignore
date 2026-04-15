@@ -45,6 +45,12 @@ outputs/
 contexts/
 feedbacks/
 
+# Unused prompt subdirectories
+prompts/draft/
+prompts/search/
+prompts/trl/
+prompts/formatting/
+
 # Temp / duplicate files
 "README copy.md"
 PLAN.md
