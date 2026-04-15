@@ -277,7 +277,7 @@ class SupervisorAgent:
 
         # 경쟁사·기술을 모두 균등하게 포함해야 하는 챕터
         chapters_requiring_balance = [
-            "EXECUTIVE SUMMARY",
+            "SUMMARY",
             "분석 배경 및 기술 현황",
             "전략적 시사점",
             "결론",

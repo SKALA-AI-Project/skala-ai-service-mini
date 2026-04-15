@@ -1,6 +1,7 @@
 # macOS
 .DS_Store
 
+
 # Python
 __pycache__/
 *.py[cod]
@@ -23,10 +24,25 @@ venv/
 build/
 dist/
 *.egg-info/
-
+README_copy.md
 
 # Local data artifacts
 data/raw/*
 data/processed/*
 !data/raw/.gitkeep
 !data/processed/.gitkeep
+
+# Generated outputs (reports, logs)
+outputs/
+
+# Claude Code local settings
+.claude/
+
+# Internal project documents
+contexts/
+feedbacks/
+
+# Temp / duplicate files
+"README copy.md"
+PLAN.md
+DIRECTORY_STRUCTURE.md

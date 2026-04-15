@@ -24,7 +24,7 @@ from schemas.trl_assessment import TrlAssessment
 class DraftFrameOutput(BaseModel):
     """조사 결과를 제외한 보고서 프레임 섹션 구조."""
 
-    executive_summary: str = Field(description="EXECUTIVE SUMMARY 본문")
+    executive_summary: str = Field(description="SUMMARY 본문")
     analysis_background: str = Field(description="분석 배경 및 기술 현황 통합 본문 (목적·범위·현황)")
     conclusion: str = Field(description="결론 본문")
     reference: str = Field(description="URL 기반 참고문헌 목록")
@@ -201,12 +201,13 @@ class DraftGenerationAgent:
                 }
             )
             trend = self._fill_missing_topic_coverage(
-                comp_section.trend, topics, competitor, date_range
+                self._normalize_llm_text(comp_section.trend), topics, competitor, date_range
             )
+            trl_text = self._normalize_llm_text(comp_section.trl_assessment)
             competitor_blocks.append(
                 f"## 2.{index} {competitor}\n\n"
                 f"### 2.{index}.1 {competitor} 동향\n{trend}\n\n"
-                f"### 2.{index}.2 {competitor} TRL 기반 기술 성숙도\n{comp_section.trl_assessment}"
+                f"### 2.{index}.2 {competitor} TRL 기반 기술 성숙도\n{trl_text}"
             )
             print(f"[LOG] {competitor} 조사 결과 섹션 생성 완료")
 
@@ -233,19 +234,25 @@ class DraftGenerationAgent:
         )
         print(f"[LOG] 전략적 시사점 통합 섹션 생성 완료")
 
+        norm = self._normalize_llm_text
         sections = ReportSections(
-            executive_summary=frame.executive_summary,
-            analysis_background=frame.analysis_background,
+            executive_summary=norm(frame.executive_summary),
+            analysis_background=norm(frame.analysis_background),
             investigation_results="\n\n".join(competitor_blocks),
-            strategic_implications=strat_section.strategic_implications,
-            conclusion=frame.conclusion,
-            reference=frame.reference,
+            strategic_implications=norm(strat_section.strategic_implications),
+            conclusion=norm(frame.conclusion),
+            reference=norm(frame.reference),
         )
         markdown = self._to_markdown(sections)
         markdown = self._enforce_scope(markdown, topics, competitors)
         scores = self._score_with_llm(markdown)
         print(f"[LOG] LLM 초안 생성 완료: draft_scores={scores}")
         return sections, scores, markdown
+
+    @staticmethod
+    def _normalize_llm_text(text: str) -> str:
+        """LLM 구조화 출력에서 리터럴 이스케이프 시퀀스를 실제 문자로 변환한다."""
+        return text.replace("\\n", "\n").replace("\\t", "\t")
 
     def _build_evidence_lines(self, search_results: list[SearchResult]) -> list[str]:
         """검색 결과를 프롬프트용 텍스트 라인으로 변환한다."""
@@ -399,7 +406,7 @@ class DraftGenerationAgent:
         """피드백에서 요구한 목차 구조로 Markdown을 직렬화한다."""
         return "\n\n".join(
             [
-                "# EXECUTIVE SUMMARY\n" + sections["executive_summary"],
+                "# SUMMARY\n" + sections["executive_summary"],
                 "# 1. 분석 배경 및 기술 현황\n" + sections["analysis_background"],
                 "# 2. 조사 결과\n" + sections["investigation_results"],
                 "# 3. 전략적 시사점\n" + sections["strategic_implications"],

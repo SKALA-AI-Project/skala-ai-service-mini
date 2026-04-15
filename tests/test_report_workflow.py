@@ -21,7 +21,7 @@ class ReportWorkflowE2ETest(unittest.TestCase):
             self.assertIn("summary_score", state["quality_scores"])
 
             report_text = Path(state["final_report_md_path"]).read_text(encoding="utf-8")
-            self.assertIn("# EXECUTIVE SUMMARY", report_text)
+            self.assertIn("# SUMMARY", report_text)
             self.assertIn("# 1. 분석 배경 및 기술 현황", report_text)
             self.assertIn("# 2. 조사 결과", report_text)
             self.assertIn("# 4. 결론", report_text)
@@ -84,7 +84,7 @@ class ReportWorkflowSectionCoverageTest(unittest.TestCase):
             state = run_report_workflow(output_dir=Path(temp_dir), use_live_api=False)
             report = Path(state["final_report_md_path"]).read_text(encoding="utf-8")
             expected_headings = [
-                "# EXECUTIVE SUMMARY",
+                "# SUMMARY",
                 "# 1. 분석 배경 및 기술 현황",
                 "# 2. 조사 결과",
                 "# 3. 전략적 시사점",
