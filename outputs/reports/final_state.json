@@ -1,0 +1,155 @@
+{
+  "user_query": "최근 6개월 기준으로 HBM4와 PIM만 Samsung 중심으로 분석해줘",
+  "topics": [
+    "HBM4",
+    "PIM"
+  ],
+  "competitors": [
+    "Samsung"
+  ],
+  "date_range": {
+    "from": "2025-10-17",
+    "to": "2026-04-15"
+  },
+  "websearch_retry_count": 2,
+  "draft_retry_count": 0,
+  "error_log": [
+    "포맷팅 실패: PDF 변환 오류, Markdown 원본만 보존됨"
+  ],
+  "search_results": [
+    {
+      "query": "Samsung HBM4 시장 선도 전망",
+      "title": "Samsung HBM4 시장 선도 전망",
+      "url": "https://example.com/samsung/hbm4/positive",
+      "content": "Samsung의 HBM4 관련 최근 동향을 positive 관점에서 요약한 결과다. 실제 API 연동 전까지는 설계 검증용 모의 데이터로 사용된다.",
+      "perspective": "positive",
+      "source_type": "official",
+      "published_date": "2026-04-15",
+      "company": "Samsung",
+      "tech": "HBM4"
+    },
+    {
+      "query": "Samsung HBM4 기술 리스크와 지연 요인",
+      "title": "Samsung HBM4 기술 리스크와 지연 요인",
+      "url": "https://example.com/samsung/hbm4/negative",
+      "content": "Samsung의 HBM4 관련 최근 동향을 negative 관점에서 요약한 결과다. 실제 API 연동 전까지는 설계 검증용 모의 데이터로 사용된다.",
+      "perspective": "negative",
+      "source_type": "analyst",
+      "published_date": "2026-04-15",
+      "company": "Samsung",
+      "tech": "HBM4"
+    },
+    {
+      "query": "Samsung HBM4 기술 개발 동향",
+      "title": "Samsung HBM4 기술 개발 동향",
+      "url": "https://example.com/samsung/hbm4/neutral",
+      "content": "Samsung의 HBM4 관련 최근 동향을 neutral 관점에서 요약한 결과다. 실제 API 연동 전까지는 설계 검증용 모의 데이터로 사용된다.",
+      "perspective": "neutral",
+      "source_type": "academic",
+      "published_date": "2026-04-15",
+      "company": "Samsung",
+      "tech": "HBM4"
+    },
+    {
+      "query": "Samsung PIM 시장 선도 전망",
+      "title": "Samsung PIM 시장 선도 전망",
+      "url": "https://example.com/samsung/pim/positive",
+      "content": "Samsung의 PIM 관련 최근 동향을 positive 관점에서 요약한 결과다. 실제 API 연동 전까지는 설계 검증용 모의 데이터로 사용된다.",
+      "perspective": "positive",
+      "source_type": "official",
+      "published_date": "2026-04-15",
+      "company": "Samsung",
+      "tech": "PIM"
+    },
+    {
+      "query": "Samsung PIM 기술 리스크와 지연 요인",
+      "title": "Samsung PIM 기술 리스크와 지연 요인",
+      "url": "https://example.com/samsung/pim/negative",
+      "content": "Samsung의 PIM 관련 최근 동향을 negative 관점에서 요약한 결과다. 실제 API 연동 전까지는 설계 검증용 모의 데이터로 사용된다.",
+      "perspective": "negative",
+      "source_type": "analyst",
+      "published_date": "2026-04-15",
+      "company": "Samsung",
+      "tech": "PIM"
+    },
+    {
+      "query": "Samsung PIM 기술 개발 동향",
+      "title": "Samsung PIM 기술 개발 동향",
+      "url": "https://example.com/samsung/pim/neutral",
+      "content": "Samsung의 PIM 관련 최근 동향을 neutral 관점에서 요약한 결과다. 실제 API 연동 전까지는 설계 검증용 모의 데이터로 사용된다.",
+      "perspective": "neutral",
+      "source_type": "academic",
+      "published_date": "2026-04-15",
+      "company": "Samsung",
+      "tech": "PIM"
+    }
+  ],
+  "bias_check": false,
+  "hitl_approved": true,
+  "warning_flag": true,
+  "trl_assessment": {
+    "HBM4": {
+      "Samsung": {
+        "company": "Samsung",
+        "tech": "HBM4",
+        "trl": 7,
+        "basis": "confirmed",
+        "confidence": "medium",
+        "evidence": [
+          "2026-04-15 기준 최근 검색 결과 3건 확보",
+          "Samsung / HBM4에 대해 긍정·부정·중립 관점 자료를 수집",
+          "양산 발표, 연구 동향, 리스크 관점을 함께 반영"
+        ],
+        "limitation": null
+      }
+    },
+    "PIM": {
+      "Samsung": {
+        "company": "Samsung",
+        "tech": "PIM",
+        "trl": 5,
+        "basis": "estimated",
+        "confidence": "low",
+        "evidence": [
+          "2026-04-15 기준 최근 검색 결과 3건 확보",
+          "Samsung / PIM에 대해 긍정·부정·중립 관점 자료를 수집",
+          "양산 발표, 연구 동향, 리스크 관점을 함께 반영"
+        ],
+        "limitation": "공개 자료가 제한적이어서 간접지표 기반 추정이 포함됨"
+      }
+    }
+  },
+  "draft_content": {
+    "executive_summary": "본 보고서는 HBM4, PIM 기술을 대상으로 Samsung의 최근 공개 자료를 분석해 기술 현황과 경쟁 압력을 검토하고, SK하이닉스의 대응 방향을 정리하기 위해 작성되었다. 수집된 자료는 긍정, 부정, 중립 관점을 함께 포함하며, 단일 기업 발표에 의존하지 않고 기사, 공식 발표, 분석성 자료를 교차 검토했다. HBM4는 공개된 양산·출하 신호와 고객사 연계 발표로 인해 비교적 높은 기술 성숙도가 확인되며, PIM은 아직 직접적인 상용화 증거가 제한적이어서 보수적 추정이 필요하다. 따라서 본 보고서는 즉시 경쟁이 벌어지는 고성숙 기술과 중장기 검증이 필요한 기술을 구분해 해석하고, 실행 우선순위를 도출하는 데 초점을 둔다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다.",
+    "analysis_purpose": "분석 목적은 HBM4, PIM 영역에서 Samsung의 기술 추진 방향, 양산 신호, 공개 발표의 질을 정리하고 SK하이닉스가 어떤 기술에 즉시 대응해야 하며 어떤 기술은 중장기 추적 대상으로 볼지 판단하는 데 있다. 특히 고성능 메모리와 차세대 메모리 아키텍처는 단순 기술 개발을 넘어 고객사 채택, 공급망 대응, 생산 능력 확대와 연결되므로, 기사 하나의 톤보다 반복적으로 관측되는 공개 신호의 성격이 중요하다. 이 보고서는 검색 근거를 단순 요약하는 수준을 넘어서 기술 성숙도와 전략적 위협 수준을 실무적으로 해석하는 것을 목적으로 한다.",
+    "analysis_scope": "분석 범위는 기술적으로 HBM4, PIM이며, 경쟁사 범위는 Samsung로 한정한다. 시간 범위는 사용자 요청 기준 최근 공개 자료를 우선 반영하며, 자료 유형은 기업 공식 발표, 일반 뉴스, 리스크 관점 검색 결과, 기술 동향 기사 등을 포함한다. 또한 각 기술에 대해 단순 제품 출시 여부만이 아니라 양산·출하 신호, 고객사 적용 가능성, 성능 수치, 제조 전략, 기사 맥락에서 드러나는 위험 요소까지 함께 검토한다. 본 보고서는 지정되지 않은 기술과 경쟁사를 확장하지 않고, 요청 범위 안에서 실질적인 전략 판단에 필요한 정보만 구조화한다.",
+    "tech_status": "HBM4의 기술 현황은 최근 공개 자료에서 반복적으로 드러난 사실을 기준으로 정리했다. 대표적으로 Samsung HBM4 시장 선도 전망, Samsung HBM4 기술 리스크와 지연 요인, Samsung HBM4 기술 개발 동향와 같은 자료가 확인되었으며, 이들 자료는 제품 출시, 생산 확대, 리스크 신호, 적용 분야를 서로 다른 관점에서 보여준다. 따라서 본 보고서는 단순 홍보 문구를 그대로 옮기지 않고, 성능 수치와 출하, 제조 전략, 기사 맥락을 함께 보며 HBM4의 실제 실행 단계와 전략적 의미를 해석한다. PIM의 기술 현황은 최근 공개 자료에서 반복적으로 드러난 사실을 기준으로 정리했다. 대표적으로 Samsung PIM 시장 선도 전망, Samsung PIM 기술 리스크와 지연 요인, Samsung PIM 기술 개발 동향와 같은 자료가 확인되었으며, 이들 자료는 제품 출시, 생산 확대, 리스크 신호, 적용 분야를 서로 다른 관점에서 보여준다. 따라서 본 보고서는 단순 홍보 문구를 그대로 옮기지 않고, 성능 수치와 출하, 제조 전략, 기사 맥락을 함께 보며 PIM의 실제 실행 단계와 전략적 의미를 해석한다.",
+    "investigation_results": "## 3.1 Samsung\n\n## 3.1.1 Samsung 동향\nHBM4에서는 Samsung HBM4 시장 선도 전망를 포함한 최근 자료가 확인되며, Samsung의 공개 발표와 기사 흐름은 해당 기술을 시장 경쟁력 강화 수단으로 활용하려는 방향을 보여준다. PIM에서는 Samsung PIM 시장 선도 전망를 포함한 최근 자료가 확인되며, Samsung의 공개 발표와 기사 흐름은 해당 기술을 시장 경쟁력 강화 수단으로 활용하려는 방향을 보여준다. 전반적으로 Samsung의 동향은 생산, 고객 적용, 전략 발표를 통해 시장 주도권을 강화하려는 모습으로 해석되지만, 공식 발표의 성격상 낙관적 표현이 섞여 있을 가능성도 있어 중립 기사와 리스크 관점 자료를 함께 읽는 것이 필요하다.\n\n## 3.1.2 Samsung TRL 기반 기술 성숙도\nHBM4의 TRL은 7로 확인되며, confidence는 medium이다. PIM의 TRL은 5로 추정되며, confidence는 low이다. 한계는 공개 자료가 제한적이어서 간접지표 기반 추정이 포함됨. 따라서 Samsung의 기술 성숙도는 기술별로 구분해서 읽어야 하며, 양산 신호가 있는 기술과 간접지표에 의존하는 기술을 같은 선상에서 비교하면 안 된다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다.\n\n## 3.1.3 Samsung 전략적 시사점\nSamsung에 대한 전략적 시사점은 HBM4, PIM 각각의 실행 단계에 맞는 대응 체계를 분리해야 한다는 점이다. 성숙도가 높은 기술은 고객사 대응, 성능 우위, 생산 경쟁력 확보가 핵심이며, 추정 단계 기술은 언론 노출보다 실제 상용화 조건과 생태계 적합성을 검증하는 쪽이 중요하다. 결국 경쟁사의 발표량 자체보다 발표의 직접성, 수치의 구체성, 공급 및 출하 신호를 함께 읽는 분석 체계가 필요하다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다.",
+    "conclusion": "종합적으로 보면 HBM4, PIM에 대한 Samsung의 공개 신호는 서로 다른 성숙도와 대응 우선순위를 보여준다. HBM4처럼 양산과 출하, 고객사 적용 언급이 관측되는 기술은 이미 실행 단계 경쟁으로 해석해야 하며, 단순 연구개발 수준의 논의로 보기 어렵다. 반면 PIM은 장기적 잠재력은 높지만 공개 자료만으로는 상용화 진척을 단정하기 어렵고, 따라서 마케팅성 메시지보다 실질적인 검증 근거를 중심으로 보수적으로 읽어야 한다. SK하이닉스는 성숙도가 높은 기술에서는 양산 경쟁력과 고객사 대응 속도를 강화하고, 추정 구간 기술에서는 실수요와 제품화 가능성 검증에 자원을 배분하는 이중 전략이 필요하다.",
+    "reference": "- [Samsung HBM4 시장 선도 전망](https://example.com/samsung/hbm4/positive)\n- [Samsung HBM4 기술 리스크와 지연 요인](https://example.com/samsung/hbm4/negative)\n- [Samsung HBM4 기술 개발 동향](https://example.com/samsung/hbm4/neutral)\n- [Samsung PIM 시장 선도 전망](https://example.com/samsung/pim/positive)\n- [Samsung PIM 기술 리스크와 지연 요인](https://example.com/samsung/pim/negative)\n- [Samsung PIM 기술 개발 동향](https://example.com/samsung/pim/neutral)"
+  },
+  "quality_scores": {
+    "search_richness": 2,
+    "bias_score": 5,
+    "summary_score": 5,
+    "coverage_score": 5,
+    "evidence_score": 5,
+    "consistency_score": 5
+  },
+  "final_report_md": "# EXECUTIVE SUMMARY\n본 보고서는 HBM4, PIM 기술을 대상으로 Samsung의 최근 공개 자료를 분석해 기술 현황과 경쟁 압력을 검토하고, SK하이닉스의 대응 방향을 정리하기 위해 작성되었다. 수집된 자료는 긍정, 부정, 중립 관점을 함께 포함하며, 단일 기업 발표에 의존하지 않고 기사, 공식 발표, 분석성 자료를 교차 검토했다. HBM4는 공개된 양산·출하 신호와 고객사 연계 발표로 인해 비교적 높은 기술 성숙도가 확인되며, PIM은 아직 직접적인 상용화 증거가 제한적이어서 보수적 추정이 필요하다. 따라서 본 보고서는 즉시 경쟁이 벌어지는 고성숙 기술과 중장기 검증이 필요한 기술을 구분해 해석하고, 실행 우선순위를 도출하는 데 초점을 둔다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다.\n\n# 1. 분석 배경\n## 1.1 분석 목적\n분석 목적은 HBM4, PIM 영역에서 Samsung의 기술 추진 방향, 양산 신호, 공개 발표의 질을 정리하고 SK하이닉스가 어떤 기술에 즉시 대응해야 하며 어떤 기술은 중장기 추적 대상으로 볼지 판단하는 데 있다. 특히 고성능 메모리와 차세대 메모리 아키텍처는 단순 기술 개발을 넘어 고객사 채택, 공급망 대응, 생산 능력 확대와 연결되므로, 기사 하나의 톤보다 반복적으로 관측되는 공개 신호의 성격이 중요하다. 이 보고서는 검색 근거를 단순 요약하는 수준을 넘어서 기술 성숙도와 전략적 위협 수준을 실무적으로 해석하는 것을 목적으로 한다.\n\n## 1.2 분석 범위\n분석 범위는 기술적으로 HBM4, PIM이며, 경쟁사 범위는 Samsung로 한정한다. 시간 범위는 사용자 요청 기준 최근 공개 자료를 우선 반영하며, 자료 유형은 기업 공식 발표, 일반 뉴스, 리스크 관점 검색 결과, 기술 동향 기사 등을 포함한다. 또한 각 기술에 대해 단순 제품 출시 여부만이 아니라 양산·출하 신호, 고객사 적용 가능성, 성능 수치, 제조 전략, 기사 맥락에서 드러나는 위험 요소까지 함께 검토한다. 본 보고서는 지정되지 않은 기술과 경쟁사를 확장하지 않고, 요청 범위 안에서 실질적인 전략 판단에 필요한 정보만 구조화한다.\n\n# 2. 기술 현황\nHBM4의 기술 현황은 최근 공개 자료에서 반복적으로 드러난 사실을 기준으로 정리했다. 대표적으로 Samsung HBM4 시장 선도 전망, Samsung HBM4 기술 리스크와 지연 요인, Samsung HBM4 기술 개발 동향와 같은 자료가 확인되었으며, 이들 자료는 제품 출시, 생산 확대, 리스크 신호, 적용 분야를 서로 다른 관점에서 보여준다. 따라서 본 보고서는 단순 홍보 문구를 그대로 옮기지 않고, 성능 수치와 출하, 제조 전략, 기사 맥락을 함께 보며 HBM4의 실제 실행 단계와 전략적 의미를 해석한다. PIM의 기술 현황은 최근 공개 자료에서 반복적으로 드러난 사실을 기준으로 정리했다. 대표적으로 Samsung PIM 시장 선도 전망, Samsung PIM 기술 리스크와 지연 요인, Samsung PIM 기술 개발 동향와 같은 자료가 확인되었으며, 이들 자료는 제품 출시, 생산 확대, 리스크 신호, 적용 분야를 서로 다른 관점에서 보여준다. 따라서 본 보고서는 단순 홍보 문구를 그대로 옮기지 않고, 성능 수치와 출하, 제조 전략, 기사 맥락을 함께 보며 PIM의 실제 실행 단계와 전략적 의미를 해석한다.\n\n# 3. 조사 결과\n## 3.1 Samsung\n\n## 3.1.1 Samsung 동향\nHBM4에서는 Samsung HBM4 시장 선도 전망를 포함한 최근 자료가 확인되며, Samsung의 공개 발표와 기사 흐름은 해당 기술을 시장 경쟁력 강화 수단으로 활용하려는 방향을 보여준다. PIM에서는 Samsung PIM 시장 선도 전망를 포함한 최근 자료가 확인되며, Samsung의 공개 발표와 기사 흐름은 해당 기술을 시장 경쟁력 강화 수단으로 활용하려는 방향을 보여준다. 전반적으로 Samsung의 동향은 생산, 고객 적용, 전략 발표를 통해 시장 주도권을 강화하려는 모습으로 해석되지만, 공식 발표의 성격상 낙관적 표현이 섞여 있을 가능성도 있어 중립 기사와 리스크 관점 자료를 함께 읽는 것이 필요하다.\n\n## 3.1.2 Samsung TRL 기반 기술 성숙도\nHBM4의 TRL은 7로 확인되며, confidence는 medium이다. PIM의 TRL은 5로 추정되며, confidence는 low이다. 한계는 공개 자료가 제한적이어서 간접지표 기반 추정이 포함됨. 따라서 Samsung의 기술 성숙도는 기술별로 구분해서 읽어야 하며, 양산 신호가 있는 기술과 간접지표에 의존하는 기술을 같은 선상에서 비교하면 안 된다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다.\n\n## 3.1.3 Samsung 전략적 시사점\nSamsung에 대한 전략적 시사점은 HBM4, PIM 각각의 실행 단계에 맞는 대응 체계를 분리해야 한다는 점이다. 성숙도가 높은 기술은 고객사 대응, 성능 우위, 생산 경쟁력 확보가 핵심이며, 추정 단계 기술은 언론 노출보다 실제 상용화 조건과 생태계 적합성을 검증하는 쪽이 중요하다. 결국 경쟁사의 발표량 자체보다 발표의 직접성, 수치의 구체성, 공급 및 출하 신호를 함께 읽는 분석 체계가 필요하다. 본 문단은 공개 자료의 반복 신호, 기사 맥락, 기술 성숙도 해석, 경쟁사의 발표 의도, 그리고 SK하이닉스의 대응 관점을 함께 고려해 작성되었다.\n\n# 4. 결론\n종합적으로 보면 HBM4, PIM에 대한 Samsung의 공개 신호는 서로 다른 성숙도와 대응 우선순위를 보여준다. HBM4처럼 양산과 출하, 고객사 적용 언급이 관측되는 기술은 이미 실행 단계 경쟁으로 해석해야 하며, 단순 연구개발 수준의 논의로 보기 어렵다. 반면 PIM은 장기적 잠재력은 높지만 공개 자료만으로는 상용화 진척을 단정하기 어렵고, 따라서 마케팅성 메시지보다 실질적인 검증 근거를 중심으로 보수적으로 읽어야 한다. SK하이닉스는 성숙도가 높은 기술에서는 양산 경쟁력과 고객사 대응 속도를 강화하고, 추정 구간 기술에서는 실수요와 제품화 가능성 검증에 자원을 배분하는 이중 전략이 필요하다.\n\n# REFERENCE\n- [Samsung HBM4 시장 선도 전망](https://example.com/samsung/hbm4/positive)\n- [Samsung HBM4 기술 리스크와 지연 요인](https://example.com/samsung/hbm4/negative)\n- [Samsung HBM4 기술 개발 동향](https://example.com/samsung/hbm4/neutral)\n- [Samsung PIM 시장 선도 전망](https://example.com/samsung/pim/positive)\n- [Samsung PIM 기술 리스크와 지연 요인](https://example.com/samsung/pim/negative)\n- [Samsung PIM 기술 개발 동향](https://example.com/samsung/pim/neutral)",
+  "final_report_md_path": "outputs/reports/technology_strategy_report.md",
+  "final_report_pdf_path": "",
+  "metadata": {
+    "OPENAI_API_KEY_SET": "True",
+    "LANGCHAIN_API_KEY_SET": "True",
+    "LANGCHAIN_TRACING_V2": "true",
+    "LANGCHAIN_ENDPOINT": "https://api.smith.langchain.com",
+    "LANGCHAIN_PROJECT": "SKALA",
+    "HUGGINGFACEHUB_API_TOKEN_SET": "True",
+    "TAVILY_API_KEY_SET": "True",
+    "DRAFT_MODEL": "gpt-4o",
+    "JUDGE_MODEL": "gpt-4o-mini",
+    "USE_LIVE_API": "False",
+    "scope_source": "query"
+  }
+}

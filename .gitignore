@@ -24,11 +24,6 @@ build/
 dist/
 *.egg-info/
 
-# Runtime outputs
-outputs/logs/*
-outputs/reports/*
-!outputs/logs/.gitkeep
-!outputs/reports/.gitkeep
 
 # Local data artifacts
 data/raw/*
