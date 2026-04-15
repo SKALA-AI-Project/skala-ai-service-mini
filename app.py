@@ -22,13 +22,21 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="최종 상태 JSON을 함께 저장할지 여부",
     )
+    parser.add_argument(
+        "--mock",
+        action="store_true",
+        help="실제 API 대신 mock 경로로 실행할지 여부",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     """워크플로우를 실행하고 주요 산출물 경로를 출력한다."""
     args = parse_args()
-    final_state = run_report_workflow(output_dir=Path(args.output_dir))
+    final_state = run_report_workflow(
+        output_dir=Path(args.output_dir),
+        use_live_api=not args.mock,
+    )
 
     print("워크플로우 실행 완료")
     print(f"- Markdown: {final_state['final_report_md_path']}")

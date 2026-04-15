@@ -9,27 +9,30 @@ from agents.hitl_node import HitlNode
 from agents.supervisor import SupervisorAgent
 from agents.trl_analysis_node import TrlAnalysisNode
 from agents.web_search_agent import WebSearchAgent
+from config import RuntimeConfig, load_runtime_config
 from schemas.state import WorkflowState
 
 
-def load_runtime_metadata() -> dict[str, str]:
-    """`.env.example`에 정의된 모든 환경 변수 키를 메타데이터로 노출한다."""
+def load_runtime_metadata(use_live_api: bool) -> dict[str, str]:
+    """`.env.example`의 키가 현재 런타임에 반영됐는지 요약한다."""
+    config = load_runtime_config(use_live_api=use_live_api)
     return {
-        "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY", ""),
-        "LANGCHAIN_API_KEY": os.getenv("LANGCHAIN_API_KEY", ""),
-        "LANGCHAIN_TRACING_V2": os.getenv("LANGCHAIN_TRACING_V2", "true"),
-        "LANGCHAIN_ENDPOINT": os.getenv(
-            "LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com"
-        ),
-        "LANGCHAIN_PROJECT": os.getenv("LANGCHAIN_PROJECT", "SKALA"),
-        "HUGGINGFACEHUB_API_TOKEN": os.getenv("HUGGINGFACEHUB_API_TOKEN", ""),
-        "TAVILY_API_KEY": os.getenv("TAVILY_API_KEY", ""),
+        "OPENAI_API_KEY_SET": str(bool(config.openai_api_key)),
+        "LANGCHAIN_API_KEY_SET": str(bool(config.langchain_api_key)),
+        "LANGCHAIN_TRACING_V2": config.langchain_tracing_v2,
+        "LANGCHAIN_ENDPOINT": config.langchain_endpoint,
+        "LANGCHAIN_PROJECT": config.langchain_project,
+        "HUGGINGFACEHUB_API_TOKEN_SET": str(bool(config.huggingfacehub_api_token)),
+        "TAVILY_API_KEY_SET": str(bool(config.tavily_api_key)),
+        "OPENAI_MODEL": config.openai_model,
+        "USE_LIVE_API": str(config.use_live_api),
     }
 
 
-def build_initial_state() -> WorkflowState:
+def build_initial_state(use_live_api: bool = True) -> WorkflowState:
     """설계 문서 기준의 초기 상태를 생성한다."""
-    search_agent = WebSearchAgent()
+    config = load_runtime_config(use_live_api=use_live_api)
+    search_agent = WebSearchAgent(config)
     return WorkflowState(
         topics=["HBM4", "PIM", "CXL"],
         competitors=["Samsung", "Micron"],
@@ -56,17 +59,20 @@ def build_initial_state() -> WorkflowState:
         final_report_md="",
         final_report_md_path="",
         final_report_pdf_path="",
-        metadata=load_runtime_metadata(),
+        metadata=load_runtime_metadata(use_live_api=use_live_api),
     )
 
 
-def run_report_workflow(output_dir: Path) -> WorkflowState:
+def run_report_workflow(output_dir: Path, use_live_api: bool = True) -> WorkflowState:
     """Supervisor 중심 순차 실행 워크플로우를 수행한다."""
-    state = build_initial_state()
+    config = load_runtime_config(use_live_api=use_live_api)
+    _apply_langsmith_environment(config)
+
+    state = build_initial_state(use_live_api=use_live_api)
     supervisor = SupervisorAgent()
-    search_agent = WebSearchAgent()
+    search_agent = WebSearchAgent(config)
     trl_node = TrlAnalysisNode()
-    draft_agent = DraftGenerationAgent()
+    draft_agent = DraftGenerationAgent(config)
     formatting_node = FormattingNode()
     hitl_node = HitlNode()
 
@@ -143,6 +149,15 @@ def run_report_workflow(output_dir: Path) -> WorkflowState:
     return state
 
 
+def _apply_langsmith_environment(config: RuntimeConfig) -> None:
+    """LangSmith 추적에 필요한 환경 변수를 프로세스에 주입한다."""
+    os.environ["LANGCHAIN_TRACING_V2"] = config.langchain_tracing_v2
+    os.environ["LANGCHAIN_ENDPOINT"] = config.langchain_endpoint
+    os.environ["LANGCHAIN_PROJECT"] = config.langchain_project
+    if config.langchain_api_key:
+        os.environ["LANGCHAIN_API_KEY"] = config.langchain_api_key
+
+
 def _draft_scores_pass(quality_scores: dict[str, int]) -> bool:
     """설계 문서의 최소 품질 기준을 코드로 표현한다."""
     return all(
@@ -161,7 +176,6 @@ def _write_design_validation_log(output_dir: Path, validation: object) -> None:
     logs_dir = output_dir.parent / "logs"
     logs_dir.mkdir(parents=True, exist_ok=True)
 
-    # ValidationResult 타입에만 의존하지 않도록 최소 속성만 사용한다.
     passed = getattr(validation, "passed", False)
     missing_items = getattr(validation, "missing_items", [])
     log_lines = ["# 설계 검증 결과", "", f"- 통과 여부: {passed}"]

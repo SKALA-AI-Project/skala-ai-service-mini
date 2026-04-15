@@ -10,7 +10,7 @@ class ReportWorkflowTest(unittest.TestCase):
 
     def test_report_workflow_runs_end_to_end(self) -> None:
         with TemporaryDirectory() as temp_dir:
-            state = run_report_workflow(output_dir=Path(temp_dir))
+            state = run_report_workflow(output_dir=Path(temp_dir), use_live_api=False)
 
             self.assertTrue(state["bias_check"])
             self.assertTrue(Path(state["final_report_md_path"]).exists())

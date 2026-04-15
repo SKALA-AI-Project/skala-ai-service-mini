@@ -1,5 +1,6 @@
 import unittest
 
+from config import load_runtime_config
 from agents.web_search_agent import WebSearchAgent
 
 
@@ -7,7 +8,7 @@ class SearchAgentTest(unittest.TestCase):
     """검색 에이전트의 기본 다양성 규칙을 검증한다."""
 
     def test_search_agent_returns_balanced_mock_results(self) -> None:
-        agent = WebSearchAgent()
+        agent = WebSearchAgent(load_runtime_config(use_live_api=False))
         results, scores, bias_check = agent.collect(
             topics=["HBM4", "PIM", "CXL"],
             competitors=["Samsung", "Micron"],
