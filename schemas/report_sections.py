@@ -4,12 +4,12 @@ from typing import TypedDict
 
 
 class ReportSections(TypedDict):
-    """최종 보고서 7개 섹션 구조를 고정한다."""
+    """피드백 반영 후 최종 보고서 섹션 구조를 고정한다."""
 
-    summary: str
-    background: str
+    executive_summary: str
+    analysis_purpose: str
+    analysis_scope: str
     tech_status: str
-    competitor: str
-    trl_assessment: str
-    insight: str
+    investigation_results: str
+    conclusion: str
     reference: str

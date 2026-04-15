@@ -27,14 +27,25 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="실제 API 대신 mock 경로로 실행할지 여부",
     )
+    parser.add_argument(
+        "--query",
+        default="",
+        help="Supervisor가 분석 범위를 추출할 사용자 요청 문장",
+    )
     return parser.parse_args()
 
 
 def main() -> None:
     """워크플로우를 실행하고 주요 산출물 경로를 출력한다."""
     args = parse_args()
+    print(
+        "[LOG] CLI 실행:"
+        f" output_dir={args.output_dir}, mock={args.mock},"
+        f" save_state={args.save_state}, query={'있음' if args.query else '없음'}"
+    )
     final_state = run_report_workflow(
         output_dir=Path(args.output_dir),
+        user_query=args.query,
         use_live_api=not args.mock,
     )
 
@@ -48,6 +59,7 @@ def main() -> None:
             json.dumps(final_state, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        print(f"[LOG] 상태 JSON 저장 완료: {state_path}")
         print(f"- 상태 JSON: {state_path}")
 
 

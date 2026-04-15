@@ -40,7 +40,13 @@ class WebSearchAgent:
         date_range: dict[str, str],
     ) -> tuple[list[SearchResult], dict[str, int], bool]:
         """검색 결과와 검색 품질 점수를 함께 반환한다."""
+        print(
+            "[LOG] WebSearchAgent.collect 호출:"
+            f" topics={topics}, competitors={competitors},"
+            f" use_live_api={self.config.use_live_api}"
+        )
         if not self.config.use_live_api or not self.client:
+            print("[LOG] WebSearchAgent mock 경로 사용")
             return self._collect_mock_results(topics, competitors, date_range)
 
         results: list[SearchResult] = []
@@ -86,10 +92,15 @@ class WebSearchAgent:
 
         # API 결과가 비어 있으면 설계 검증 흐름은 유지하되, 로그로 구분 가능하게 mock을 사용한다.
         if not results:
+            print("[LOG] Tavily 결과 비어 있음: mock 경로로 대체")
             return self._collect_mock_results(topics, competitors, date_range)
 
         scores = self._score_results(results)
         bias_check = scores["bias_score"] >= 3 and scores["search_richness"] >= 3
+        print(
+            "[LOG] WebSearchAgent.collect 완료:"
+            f" results={len(results)}, scores={scores}, bias_check={bias_check}"
+        )
         return results, scores, bias_check
 
     def _collect_mock_results(
@@ -117,6 +128,10 @@ class WebSearchAgent:
 
         scores = self._score_results(results)
         bias_check = scores["bias_score"] >= 3 and scores["search_richness"] >= 3
+        print(
+            "[LOG] mock 검색 결과 생성:"
+            f" results={len(results)}, scores={scores}, bias_check={bias_check}"
+        )
         return results, scores, bias_check
 
     def _build_mock_result(

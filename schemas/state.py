@@ -10,11 +10,11 @@ from schemas.trl_assessment import TrlAssessment
 class WorkflowState(TypedDict):
     """설계 문서의 상태 정의를 코드로 고정한 shared state다."""
 
+    user_query: str
     topics: list[str]
     competitors: list[str]
     date_range: dict[str, str]
-    retry_count: int
-    bias_retry_count: int
+    websearch_retry_count: int
     draft_retry_count: int
     error_log: list[str]
     search_results: list[SearchResult]

@@ -24,21 +24,36 @@ def load_runtime_metadata(use_live_api: bool) -> dict[str, str]:
         "LANGCHAIN_PROJECT": config.langchain_project,
         "HUGGINGFACEHUB_API_TOKEN_SET": str(bool(config.huggingfacehub_api_token)),
         "TAVILY_API_KEY_SET": str(bool(config.tavily_api_key)),
-        "OPENAI_MODEL": config.openai_model,
+        "DRAFT_MODEL": config.draft_model,
+        "JUDGE_MODEL": config.judge_model,
         "USE_LIVE_API": str(config.use_live_api),
     }
 
 
-def build_initial_state(use_live_api: bool = True) -> WorkflowState:
+def build_initial_state(
+    user_query: str = "",
+    use_live_api: bool = True,
+) -> WorkflowState:
     """설계 문서 기준의 초기 상태를 생성한다."""
     config = load_runtime_config(use_live_api=use_live_api)
     search_agent = WebSearchAgent(config)
+    supervisor = SupervisorAgent()
+    default_date_range = search_agent.build_date_range()
+    topics, competitors, date_range, scope_source = supervisor.extract_request_scope(
+        user_query=user_query,
+        default_date_range=default_date_range,
+    )
+    print(
+        "[LOG] 초기 상태 구성:"
+        f" scope_source={scope_source}, topics={topics},"
+        f" competitors={competitors}, date_range={date_range}"
+    )
     return WorkflowState(
-        topics=["HBM4", "PIM", "CXL"],
-        competitors=["Samsung", "Micron"],
-        date_range=search_agent.build_date_range(),
-        retry_count=0,
-        bias_retry_count=0,
+        user_query=user_query,
+        topics=topics,
+        competitors=competitors,
+        date_range=date_range,
+        websearch_retry_count=0,
         draft_retry_count=0,
         error_log=[],
         search_results=[],
@@ -47,28 +62,40 @@ def build_initial_state(use_live_api: bool = True) -> WorkflowState:
         warning_flag=False,
         trl_assessment={},
         draft_content={
-            "summary": "",
-            "background": "",
+            "executive_summary": "",
+            "analysis_purpose": "",
+            "analysis_scope": "",
             "tech_status": "",
-            "competitor": "",
-            "trl_assessment": "",
-            "insight": "",
+            "investigation_results": "",
+            "conclusion": "",
             "reference": "",
         },
         quality_scores={},
         final_report_md="",
         final_report_md_path="",
         final_report_pdf_path="",
-        metadata=load_runtime_metadata(use_live_api=use_live_api),
+        metadata={
+            **load_runtime_metadata(use_live_api=use_live_api),
+            "scope_source": scope_source,
+        },
     )
 
 
-def run_report_workflow(output_dir: Path, use_live_api: bool = True) -> WorkflowState:
+def run_report_workflow(
+    output_dir: Path,
+    user_query: str = "",
+    use_live_api: bool = True,
+) -> WorkflowState:
     """Supervisor 중심 순차 실행 워크플로우를 수행한다."""
+    print(
+        "[LOG] 워크플로우 시작:"
+        f" use_live_api={use_live_api}, output_dir={output_dir},"
+        f" user_query={'있음' if user_query else '없음'}"
+    )
     config = load_runtime_config(use_live_api=use_live_api)
     _apply_langsmith_environment(config)
 
-    state = build_initial_state(use_live_api=use_live_api)
+    state = build_initial_state(user_query=user_query, use_live_api=use_live_api)
     supervisor = SupervisorAgent()
     search_agent = WebSearchAgent(config)
     trl_node = TrlAnalysisNode()
@@ -77,7 +104,11 @@ def run_report_workflow(output_dir: Path, use_live_api: bool = True) -> Workflow
     hitl_node = HitlNode()
 
     # 검색 단계는 편향 검증과 커버리지 검증을 함께 통과할 때까지 재시도한다.
-    while state["bias_retry_count"] <= 2:
+    while True:
+        print(
+            "[LOG] 검색 단계 실행:"
+            f" websearch_retry_count={state['websearch_retry_count']}"
+        )
         search_results, search_scores, bias_check = search_agent.collect(
             topics=state["topics"],
             competitors=state["competitors"],
@@ -86,26 +117,51 @@ def run_report_workflow(output_dir: Path, use_live_api: bool = True) -> Workflow
         state["search_results"] = search_results
         state["quality_scores"].update(search_scores)
         state["bias_check"] = bias_check
+        print(
+            "[LOG] 검색 단계 결과:"
+            f" results={len(search_results)}, scores={search_scores},"
+            f" bias_check={bias_check}"
+        )
 
         search_validation = supervisor.validate_search_coverage(state)
         if search_validation.passed and state["bias_check"]:
+            print("[LOG] 검색 단계 통과: 커버리지와 bias_check 충족")
             break
 
-        state["bias_retry_count"] += 1
         state["error_log"].extend(search_validation.missing_items)
-
-        if state["bias_retry_count"] > 2:
+        print(
+            "[LOG] 검색 단계 재시도 필요:"
+            f" missing_items={search_validation.missing_items}"
+        )
+        if state["websearch_retry_count"] >= 2:
             state["hitl_approved"] = hitl_node.review(state)
             state["warning_flag"] = True
+            print(
+                "[LOG] 검색 단계 HITL 승인:"
+                f" hitl_approved={state['hitl_approved']},"
+                f" warning_flag={state['warning_flag']}"
+            )
             break
+        state["websearch_retry_count"] += 1
 
+    print("[LOG] TRL 분석 시작")
     state["trl_assessment"] = trl_node.analyze(state["search_results"])
     trl_validation = supervisor.validate_trl_coverage(state)
     if not trl_validation.passed:
         state["error_log"].extend(trl_validation.missing_items)
+        print(f"[LOG] TRL 검증 누락: {trl_validation.missing_items}")
+    else:
+        print(
+            "[LOG] TRL 분석 완료:"
+            f" tech_count={len(state['trl_assessment'])}"
+        )
 
     # 초안 단계는 필수 섹션과 최소 품질 점수를 만족할 때까지 재생성한다.
-    while state["draft_retry_count"] <= 2:
+    while True:
+        print(
+            "[LOG] 초안 생성 단계 실행:"
+            f" draft_retry_count={state['draft_retry_count']}"
+        )
         sections, draft_scores, markdown = draft_agent.generate(
             state["search_results"],
             state["trl_assessment"],
@@ -113,28 +169,52 @@ def run_report_workflow(output_dir: Path, use_live_api: bool = True) -> Workflow
         state["draft_content"] = sections
         state["quality_scores"].update(draft_scores)
         state["final_report_md"] = markdown
+        print(f"[LOG] 초안 생성 결과: draft_scores={draft_scores}")
 
         draft_validation = supervisor.validate_draft(state)
         if draft_validation.passed and _draft_scores_pass(state["quality_scores"]):
+            print("[LOG] 초안 단계 통과: 필수 섹션 및 품질 기준 충족")
             break
 
-        state["draft_retry_count"] += 1
         state["error_log"].extend(draft_validation.missing_items)
+        print(
+            "[LOG] 초안 단계 재시도 필요:"
+            f" missing_items={draft_validation.missing_items}"
+        )
+        if state["draft_retry_count"] >= 2:
+            break
+        state["draft_retry_count"] += 1
 
-    md_path, pdf_path = formatting_node.export(markdown, output_dir)
+    print("[LOG] 포맷팅 시작")
+    md_path, pdf_path, export_ok = formatting_node.export(
+        markdown,
+        output_dir,
+        allow_pdf=use_live_api,
+    )
     state["final_report_md_path"] = md_path
     state["final_report_pdf_path"] = pdf_path
+    if not export_ok:
+        state["error_log"].append("포맷팅 실패: PDF 변환 오류, Markdown 원본만 보존됨")
+        print("[LOG] 포맷팅 실패: PDF 변환 오류, Markdown 원본만 보존")
+    else:
+        print(f"[LOG] 포맷팅 완료: markdown={md_path}, pdf={pdf_path}")
 
     # 최종 단계에서는 design.md 핵심 요구사항과 실제 산출물을 1:1로 대조한다.
-    while state["retry_count"] <= 2:
+    while True:
+        print("[LOG] 설계 검증 시작")
         design_validation = supervisor.validate_design_mapping(state)
         _write_design_validation_log(output_dir, design_validation)
         if design_validation.passed:
+            print("[LOG] 설계 검증 통과")
             break
 
-        state["retry_count"] += 1
         state["error_log"].extend(design_validation.missing_items)
-        state["draft_retry_count"] += 1
+        print(
+            "[LOG] 설계 검증 미통과:"
+            f" missing_items={design_validation.missing_items}"
+        )
+        if state["draft_retry_count"] >= 2:
+            break
         sections, draft_scores, markdown = draft_agent.generate(
             state["search_results"],
             state["trl_assessment"],
@@ -142,10 +222,23 @@ def run_report_workflow(output_dir: Path, use_live_api: bool = True) -> Workflow
         state["draft_content"] = sections
         state["quality_scores"].update(draft_scores)
         state["final_report_md"] = markdown
-        md_path, pdf_path = formatting_node.export(markdown, output_dir)
+        state["draft_retry_count"] += 1
+        print(
+            "[LOG] 설계 검증 후 초안 재생성:"
+            f" draft_retry_count={state['draft_retry_count']}"
+        )
+        md_path, pdf_path, export_ok = formatting_node.export(
+            markdown,
+            output_dir,
+            allow_pdf=use_live_api,
+        )
         state["final_report_md_path"] = md_path
         state["final_report_pdf_path"] = pdf_path
+        if not export_ok:
+            state["error_log"].append("포맷팅 실패: PDF 변환 오류, Markdown 원본만 보존됨")
+            print("[LOG] 재포맷팅 실패")
 
+    print(f"[LOG] 워크플로우 종료: error_count={len(state['error_log'])}")
     return state
 
 

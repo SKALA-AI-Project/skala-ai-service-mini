@@ -21,7 +21,8 @@ class RuntimeConfig:
     langchain_project: str
     huggingfacehub_api_token: str
     tavily_api_key: str
-    openai_model: str
+    draft_model: str
+    judge_model: str
     use_live_api: bool
 
 
@@ -37,6 +38,7 @@ def load_runtime_config(use_live_api: bool = True) -> RuntimeConfig:
         langchain_project=os.getenv("LANGCHAIN_PROJECT", "SKALA"),
         huggingfacehub_api_token=os.getenv("HUGGINGFACEHUB_API_TOKEN", ""),
         tavily_api_key=os.getenv("TAVILY_API_KEY", ""),
-        openai_model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
+        draft_model=os.getenv("DRAFT_MODEL", "gpt-4o"),
+        judge_model=os.getenv("JUDGE_MODEL", "gpt-4o-mini"),
         use_live_api=use_live_api,
     )

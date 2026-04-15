@@ -14,6 +14,7 @@ class TrlAnalysisNode:
         search_results: list[SearchResult],
     ) -> dict[str, dict[str, TrlAssessment]]:
         """기술별·기업별 TRL 결과를 중첩 딕셔너리로 반환한다."""
+        print(f"[LOG] TRL 분석 입력 건수: {len(search_results)}")
         grouped: dict[str, list[SearchResult]] = defaultdict(list)
         for item in search_results:
             grouped[f"{item['tech']}::{item['company']}"].append(item)
@@ -22,6 +23,11 @@ class TrlAnalysisNode:
         for key, items in grouped.items():
             tech, company = key.split("::", maxsplit=1)
             trl, basis, confidence, limitation = self._infer_trl(tech, company)
+            print(
+                "[LOG] TRL 판정:"
+                f" tech={tech}, company={company}, trl={trl},"
+                f" basis={basis}, confidence={confidence}"
+            )
             assessments[tech][company] = TrlAssessment(
                 company=company,
                 tech=tech,
@@ -36,6 +42,7 @@ class TrlAnalysisNode:
                 limitation=limitation,
             )
 
+        print(f"[LOG] TRL 분석 완료: pair_count={len(grouped)}")
         return dict(assessments)
 
     def _infer_trl(
