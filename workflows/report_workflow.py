@@ -176,6 +176,7 @@ def run_report_workflow(
             state["trl_assessment"],
             fallback_topics=state["topics"],
             fallback_competitors=state["competitors"],
+            date_range=state["date_range"],
         )
         state["draft_content"] = sections
         state["quality_scores"].update(draft_scores)
@@ -205,6 +206,7 @@ def run_report_workflow(
         report_title=state["report_title"],
         report_subtitle=report_subtitle,
         writers=writers,
+        date_range=state["date_range"],
     )
     state["final_report_md_path"] = md_path
     state["final_report_pdf_path"] = pdf_path
@@ -232,11 +234,14 @@ def run_report_workflow(
         )
         if design_retry >= 2:
             break
+        # 누락 항목과 관련 조사 근거를 보완 context로 함께 전달해 재작성한다
         sections, draft_scores, markdown = draft_agent.generate(
             state["search_results"],
             state["trl_assessment"],
             fallback_topics=state["topics"],
             fallback_competitors=state["competitors"],
+            missing_items=design_validation.missing_items,
+            date_range=state["date_range"],
         )
         state["draft_content"] = sections
         state["quality_scores"].update(draft_scores)
@@ -253,6 +258,7 @@ def run_report_workflow(
             report_title=state["report_title"],
             report_subtitle=report_subtitle,
             writers=writers,
+            date_range=state["date_range"],
         )
         state["final_report_md_path"] = md_path
         state["final_report_pdf_path"] = pdf_path

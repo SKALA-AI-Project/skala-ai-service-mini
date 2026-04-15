@@ -45,6 +45,7 @@ class FormattingNode:
         report_title: str = "",
         report_subtitle: str = "",
         writers: list[str] | None = None,
+        date_range: dict[str, str] | None = None,
     ) -> tuple[str, str, bool]:
         """Markdown과 PDF 산출물 경로 및 성공 여부를 반환한다."""
         print(f"[LOG] FormattingNode.export 호출: output_dir={output_dir}")
@@ -63,7 +64,7 @@ class FormattingNode:
             return str(markdown_path), "", False
 
         try:
-            self._write_pdf_from_markdown(markdown_path, pdf_path, report_title, report_subtitle, writers or [])
+            self._write_pdf_from_markdown(markdown_path, pdf_path, report_title, report_subtitle, writers or [], date_range)
         except Exception as exc:
             print(f"[LOG] PDF 생성 실패: {exc}")
             if pdf_path.exists():
@@ -102,10 +103,11 @@ class FormattingNode:
         report_title: str,
         report_subtitle: str = "",
         writers: list[str] | None = None,
+        date_range: dict[str, str] | None = None,
     ) -> None:
         """Markdown을 전문 HTML로 변환한 후 WeasyPrint로 PDF로 저장한다."""
         markdown_text = markdown_path.read_text(encoding="utf-8")
-        html_content = self._build_html_report(markdown_text, report_title, report_subtitle, writers or [])
+        html_content = self._build_html_report(markdown_text, report_title, report_subtitle, writers or [], date_range)
         HTML(string=html_content).write_pdf(str(pdf_path))
 
     # ------------------------------------------------------------------
@@ -113,13 +115,18 @@ class FormattingNode:
     # ------------------------------------------------------------------
 
     def _build_html_report(
-        self, markdown: str, report_title: str, report_subtitle: str = "", writers: list[str] | None = None
+        self,
+        markdown: str,
+        report_title: str,
+        report_subtitle: str = "",
+        writers: list[str] | None = None,
+        date_range: dict[str, str] | None = None,
     ) -> str:
         """Markdown 전체를 전문 HTML 보고서로 변환한다."""
         today_str = date.today().strftime("%Y년 %m월 %d일")
         headings = self._extract_headings(markdown)
         icon_b64 = _load_icon_base64()
-        cover_html = self._build_cover_html(today_str, report_title, report_subtitle, writers or [])
+        cover_html = self._build_cover_html(today_str, report_title, report_subtitle, writers or [], date_range)
         toc_html = self._build_toc_html(headings)
         body_html = self._markdown_to_html_body(markdown, headings)
         css = self._get_report_css()
@@ -157,7 +164,12 @@ class FormattingNode:
     # ------------------------------------------------------------------
 
     def _build_cover_html(
-        self, today_str: str, report_title: str, report_subtitle: str = "", writers: list[str] | None = None
+        self,
+        today_str: str,
+        report_title: str,
+        report_subtitle: str = "",
+        writers: list[str] | None = None,
+        date_range: dict[str, str] | None = None,
     ) -> str:
         """표지 페이지 HTML을 생성한다.
         cover-page height = content-area 높이(247mm)로 고정해
@@ -168,6 +180,15 @@ class FormattingNode:
         subtitle_html = (
             f'<div class="cover-subtitle">{report_subtitle}</div>'
             if report_subtitle
+            else ""
+        )
+        period_row = (
+            f"""
+        <tr>
+          <td class="meta-label">조사 기간</td>
+          <td class="meta-value">{date_range['from']} ~ {date_range['to']}</td>
+        </tr>"""
+            if date_range
             else ""
         )
         writers_row = (
@@ -192,7 +213,7 @@ class FormattingNode:
         <tr>
           <td class="meta-label">작성일</td>
           <td class="meta-value">{today_str}</td>
-        </tr>{writers_row}
+        </tr>{period_row}{writers_row}
       </table>
     </div>
   </div>

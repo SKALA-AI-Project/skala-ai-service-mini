@@ -87,14 +87,17 @@ class DraftGenerationAgent:
         assessments: dict[str, dict[str, TrlAssessment]],
         fallback_topics: list[str] | None = None,
         fallback_competitors: list[str] | None = None,
+        missing_items: list[str] | None = None,
+        date_range: dict[str, str] | None = None,
     ) -> tuple[ReportSections, dict[str, int], str]:
         """보고서 섹션, 품질 점수, 전체 Markdown 문자열을 반환한다.
-        검색 결과가 없을 때 fallback_topics/competitors로 스켈레톤을 구성한다.
+        missing_items가 있으면 누락 항목과 관련 근거를 보완해 재작성한다.
         """
         print(
             "[LOG] 초안 생성 시작:"
             f" search_results={len(search_results)},"
-            f" assessment_techs={list(assessments.keys())}"
+            f" assessment_techs={list(assessments.keys())},"
+            f" missing_items={len(missing_items) if missing_items else 0}건"
         )
         if self.config.use_live_api and self.draft_llm and self.judge_llm:
             print(
@@ -106,6 +109,8 @@ class DraftGenerationAgent:
                 search_results, assessments,
                 fallback_topics=fallback_topics,
                 fallback_competitors=fallback_competitors,
+                missing_items=missing_items,
+                date_range=date_range,
             )
         print("[LOG] DraftGenerationAgent 규칙 기반 경로 사용")
         return self._generate_with_rules(
@@ -120,6 +125,8 @@ class DraftGenerationAgent:
         assessments: dict[str, dict[str, TrlAssessment]],
         fallback_topics: list[str] | None = None,
         fallback_competitors: list[str] | None = None,
+        missing_items: list[str] | None = None,
+        date_range: dict[str, str] | None = None,
     ) -> tuple[ReportSections, dict[str, int], str]:
         """프레임 섹션 1회 호출 + 경쟁사별 조사 결과 개별 호출로 초안을 생성한다."""
         assert self.draft_llm is not None
@@ -136,6 +143,9 @@ class DraftGenerationAgent:
         # ── 1단계: 프레임 섹션 생성 (조사 결과 제외) ────────────────────
         all_evidence = self._build_evidence_lines(search_results)
         all_trl = self._build_trl_lines(assessments)
+        frame_revision = self._build_revision_guidance(
+            missing_items or [], search_results, filter_competitor=None
+        )
 
         frame_prompt = ChatPromptTemplate.from_messages(
             [
@@ -153,6 +163,7 @@ class DraftGenerationAgent:
                 "exec_sum_min": self._exec_sum_min,
                 "exec_sum_max": self._exec_sum_max,
                 "section_min": self._section_min,
+                "revision_guidance": frame_revision,
             }
         )
         print(f"[LOG] 프레임 섹션 생성 완료")
@@ -176,6 +187,9 @@ class DraftGenerationAgent:
                  for tech, company_map in assessments.items()
                  if competitor in company_map}
             )
+            comp_revision = self._build_revision_guidance(
+                missing_items or [], search_results, filter_competitor=competitor
+            )
             comp_section = comp_chain.invoke(
                 {
                     "competitor": competitor,
@@ -183,11 +197,15 @@ class DraftGenerationAgent:
                     "section_min": self._section_min,
                     "evidence_block": "\n".join(comp_evidence),
                     "trl_block": "\n".join(comp_trl),
+                    "revision_guidance": comp_revision,
                 }
+            )
+            trend = self._fill_missing_topic_coverage(
+                comp_section.trend, topics, competitor, date_range
             )
             competitor_blocks.append(
                 f"## 2.{index} {competitor}\n\n"
-                f"### 2.{index}.1 {competitor} 동향\n{comp_section.trend}\n\n"
+                f"### 2.{index}.1 {competitor} 동향\n{trend}\n\n"
                 f"### 2.{index}.2 {competitor} TRL 기반 기술 성숙도\n{comp_section.trl_assessment}"
             )
             print(f"[LOG] {competitor} 조사 결과 섹션 생성 완료")
@@ -200,6 +218,9 @@ class DraftGenerationAgent:
             ]
         )
         strat_chain = strat_prompt | self.draft_llm.with_structured_output(StrategicImplicationsOutput)
+        strat_revision = self._build_revision_guidance(
+            missing_items or [], search_results, filter_competitor=None
+        )
         strat_section = strat_chain.invoke(
             {
                 "topic_scope": ", ".join(topics),
@@ -207,6 +228,7 @@ class DraftGenerationAgent:
                 "section_min": self._section_min,
                 "evidence_block": "\n".join(all_evidence),
                 "trl_block": "\n".join(all_trl),
+                "revision_guidance": strat_revision,
             }
         )
         print(f"[LOG] 전략적 시사점 통합 섹션 생성 완료")
@@ -233,6 +255,80 @@ class DraftGenerationAgent:
             f"URL={item['url']} / 내용={item['content'][:1200]}"
             for item in search_results
         ]
+
+    def _fill_missing_topic_coverage(
+        self,
+        trend: str,
+        topics: list[str],
+        competitor: str,
+        date_range: dict[str, str] | None = None,
+    ) -> str:
+        """동향 본문에 언급되지 않은 기술 키워드마다 '조사 결과 없음' 문구를 추가한다."""
+        missing = [t for t in topics if t.lower() not in trend.lower()]
+        if not missing:
+            return trend
+        period = (
+            f"{date_range['from']} ~ {date_range['to']}"
+            if date_range
+            else "조사 기간 미상"
+        )
+        notes = " ".join(
+            f"{topic} 기술에 대해서는 조사 기간({period}) 내 {competitor}의 공개된 조사 결과를 확인할 수 없었습니다."
+            for topic in missing
+        )
+        return f"{trend}\n\n{notes}"
+
+    def _build_revision_guidance(
+        self,
+        missing_items: list[str],
+        search_results: list[SearchResult],
+        filter_competitor: str | None,
+    ) -> str:
+        """검증 미통과 항목을 바탕으로 LLM에 전달할 보완 지시문을 생성한다.
+
+        filter_competitor가 None이면 전체 누락 항목을 대상으로 하고,
+        경쟁사명이 주어지면 해당 경쟁사 관련 누락 항목만 필터링한다.
+        누락된 경쟁사·기술과 관련된 검색 근거를 추가로 첨부한다.
+        """
+        if not missing_items:
+            return ""
+
+        if filter_competitor:
+            relevant = [m for m in missing_items if filter_competitor.lower() in m.lower()]
+        else:
+            relevant = missing_items
+
+        if not relevant:
+            return ""
+
+        lines = [
+            "【재작성 보완 지시】이전 초안 검증에서 아래 항목이 누락되었습니다."
+            " 반드시 각 항목을 본문에 포함하여 재작성하세요:",
+        ]
+        for item in relevant:
+            lines.append(f"- {item}")
+
+        # 누락된 경쟁사·기술 키워드를 missing_items 텍스트에서 추출
+        mentioned_companies = {
+            r["company"] for r in search_results
+            if any(r["company"].lower() in m.lower() for m in relevant)
+        }
+        mentioned_techs = {
+            r["tech"] for r in search_results
+            if any(r["tech"].lower() in m.lower() for m in relevant)
+        }
+
+        # 관련 검색 근거를 보완 context로 첨부 (최대 6건)
+        targeted = [
+            r for r in search_results
+            if r["company"] in mentioned_companies or r["tech"] in mentioned_techs
+        ][:6]
+
+        if targeted:
+            lines.append("\n보완 근거 (누락 항목 관련 검색 결과):")
+            lines.extend(self._build_evidence_lines(targeted))
+
+        return "\n".join(lines)
 
     def _build_trl_lines(
         self, assessments: dict[str, dict[str, TrlAssessment]]

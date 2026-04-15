@@ -6,6 +6,8 @@ DRAFT_SYSTEM_PROMPT = """
 반드시 한국어로 작성하고, 근거를 충분히 반영하며, 보수적이고 검증 가능한 표현을 사용한다.
 basis=estimated 인 항목은 반드시 "추정"과 한계를 드러내라.
 전달된 검색 근거를 지나치게 요약하지 말고, 주요 사실을 본문에 반영하라.
+【말투】모든 문장은 "~입니다", "~합니다", "~됩니다", "~있습니다" 등 합쇼체로 통일한다.
+"~이다", "~한다", "~된다", "~있다" 등 해라체를 절대 사용하지 않는다.
 """.strip()
 
 DRAFT_USER_PROMPT_TEMPLATE = """
@@ -54,6 +56,8 @@ DRAFT_USER_PROMPT_TEMPLATE = """
 
 TRL 근거:
 {trl_block}
+
+{revision_guidance}
 """.strip()
 
 COMPETITOR_SECTION_SYSTEM_PROMPT = """
@@ -61,6 +65,8 @@ COMPETITOR_SECTION_SYSTEM_PROMPT = """
 반드시 한국어로 작성하고, 전달된 검색 근거와 TRL 근거를 구체적으로 본문에 인용하라.
 추상적 서술보다 근거 기반의 사실과 수치를 우선하라.
 basis=estimated 인 TRL 항목은 반드시 "추정"임을 명시하라.
+【말투】모든 문장은 "~입니다", "~합니다", "~됩니다", "~있습니다" 등 합쇼체로 통일한다.
+"~이다", "~한다", "~된다", "~있다" 등 해라체를 절대 사용하지 않는다.
 """.strip()
 
 COMPETITOR_SECTION_USER_PROMPT_TEMPLATE = """
@@ -91,12 +97,16 @@ COMPETITOR_SECTION_USER_PROMPT_TEMPLATE = """
 
 {competitor} TRL 근거:
 {trl_block}
+
+{revision_guidance}
 """.strip()
 
 STRATEGIC_IMPLICATIONS_SYSTEM_PROMPT = """
 너는 SK하이닉스 R&D 전략 담당자를 위한 전략적 시사점 분석 전문가다.
 반드시 한국어로 작성하고, 경쟁사 간 비교 관점에서 SK하이닉스가 취해야 할 구체적 행동 방안을 제시하라.
 단순 현황 서술이 아닌 SK하이닉스의 관점에서 "무엇을 해야 하는가"를 중심으로 작성하라.
+【말투】모든 문장은 "~입니다", "~합니다", "~됩니다", "~있습니다" 등 합쇼체로 통일한다.
+"~이다", "~한다", "~된다", "~있다" 등 해라체를 절대 사용하지 않는다.
 """.strip()
 
 STRATEGIC_IMPLICATIONS_USER_PROMPT_TEMPLATE = """
@@ -116,4 +126,6 @@ STRATEGIC_IMPLICATIONS_USER_PROMPT_TEMPLATE = """
 
 전체 TRL 근거:
 {trl_block}
+
+{revision_guidance}
 """.strip()
