@@ -43,10 +43,17 @@ def build_initial_state(
         user_query=user_query,
         default_date_range=default_date_range,
     )
+    report_title = supervisor.generate_report_title(
+        user_query=user_query,
+        topics=topics,
+        competitors=competitors,
+        config=config,
+    )
     print(
         "[LOG] 초기 상태 구성:"
         f" scope_source={scope_source}, topics={topics},"
-        f" competitors={competitors}, date_range={date_range}"
+        f" competitors={competitors}, date_range={date_range},"
+        f" report_title={report_title}"
     )
     return WorkflowState(
         user_query=user_query,
@@ -71,6 +78,7 @@ def build_initial_state(
             "reference": "",
         },
         quality_scores={},
+        report_title=report_title,
         final_report_md="",
         final_report_md_path="",
         final_report_pdf_path="",
@@ -98,7 +106,7 @@ def run_report_workflow(
     state = build_initial_state(user_query=user_query, use_live_api=use_live_api)
     supervisor = SupervisorAgent()
     search_agent = WebSearchAgent(config)
-    trl_node = TrlAnalysisNode()
+    trl_node = TrlAnalysisNode(config)
     draft_agent = DraftGenerationAgent(config)
     formatting_node = FormattingNode()
     hitl_node = HitlNode()
@@ -190,6 +198,7 @@ def run_report_workflow(
         markdown,
         output_dir,
         allow_pdf=use_live_api,
+        report_title=state["report_title"],
     )
     state["final_report_md_path"] = md_path
     state["final_report_pdf_path"] = pdf_path
@@ -200,6 +209,8 @@ def run_report_workflow(
         print(f"[LOG] 포맷팅 완료: markdown={md_path}, pdf={pdf_path}")
 
     # 최종 단계에서는 design.md 핵심 요구사항과 실제 산출물을 1:1로 대조한다.
+    # draft_retry_count와 독립적인 별도 카운터를 사용해 중복 증가를 방지한다.
+    design_retry = 0
     while True:
         print("[LOG] 설계 검증 시작")
         design_validation = supervisor.validate_design_mapping(state)
@@ -213,7 +224,7 @@ def run_report_workflow(
             "[LOG] 설계 검증 미통과:"
             f" missing_items={design_validation.missing_items}"
         )
-        if state["draft_retry_count"] >= 2:
+        if design_retry >= 2:
             break
         sections, draft_scores, markdown = draft_agent.generate(
             state["search_results"],
@@ -222,15 +233,16 @@ def run_report_workflow(
         state["draft_content"] = sections
         state["quality_scores"].update(draft_scores)
         state["final_report_md"] = markdown
-        state["draft_retry_count"] += 1
+        design_retry += 1
         print(
             "[LOG] 설계 검증 후 초안 재생성:"
-            f" draft_retry_count={state['draft_retry_count']}"
+            f" design_retry={design_retry}"
         )
         md_path, pdf_path, export_ok = formatting_node.export(
             markdown,
             output_dir,
             allow_pdf=use_live_api,
+            report_title=state["report_title"],
         )
         state["final_report_md_path"] = md_path
         state["final_report_pdf_path"] = pdf_path

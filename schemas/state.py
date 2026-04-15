@@ -24,6 +24,7 @@ class WorkflowState(TypedDict):
     trl_assessment: dict[str, dict[str, TrlAssessment]]
     draft_content: ReportSections
     quality_scores: dict[str, int]
+    report_title: str
     final_report_md: str
     final_report_md_path: str
     final_report_pdf_path: str

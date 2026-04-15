@@ -1,28 +1,32 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from textwrap import dedent
 
 from langchain_core.prompts import ChatPromptTemplate
 from langsmith import traceable
+
 from langchain_openai import ChatOpenAI
 from pydantic import BaseModel, Field
 
 from config import RuntimeConfig
+from prompts.draft_prompt import DRAFT_SYSTEM_PROMPT, DRAFT_USER_PROMPT_TEMPLATE
+from prompts.quality_prompt import QUALITY_SYSTEM_PROMPT, QUALITY_USER_PROMPT_TEMPLATE
 from schemas.report_sections import ReportSections
 from schemas.search_result import SearchResult
 from schemas.trl_assessment import TrlAssessment
 
 
 class DraftSectionsOutput(BaseModel):
-    """LLM이 반환해야 하는 피드백 반영 보고서 구조다."""
+    """LLM이 반환해야 하는 보고서 섹션 구조.
+    각 섹션의 분량 요건은 프롬프트(DRAFT_USER_PROMPT_TEMPLATE)에서 주입된다.
+    """
 
-    executive_summary: str = Field(description="450~550자 EXECUTIVE SUMMARY")
-    analysis_purpose: str = Field(description="최소 300자의 분석 목적")
-    analysis_scope: str = Field(description="최소 300자의 분석 범위")
-    tech_status: str = Field(description="최소 300자의 기술 현황")
+    executive_summary: str = Field(description="EXECUTIVE SUMMARY 본문")
+    analysis_purpose: str = Field(description="분석 목적 본문")
+    analysis_scope: str = Field(description="분석 범위 본문")
+    tech_status: str = Field(description="기술 현황 본문")
     investigation_results: str = Field(description="경쟁사별 조사 결과 본문")
-    conclusion: str = Field(description="최소 300자의 결론")
+    conclusion: str = Field(description="결론 본문")
     reference: str = Field(description="URL 기반 참고문헌 목록")
 
 
@@ -40,6 +44,10 @@ class DraftGenerationAgent:
 
     def __init__(self, config: RuntimeConfig) -> None:
         self.config = config
+        # DraftConfig 에서 길이 기준 읽기
+        self._exec_sum_min: int = config.draft.executive_summary_min
+        self._exec_sum_max: int = config.draft.executive_summary_max
+        self._section_min: int = config.draft.section_min_length
         self.draft_llm = (
             ChatOpenAI(
                 api_key=config.openai_api_key,
@@ -118,56 +126,12 @@ class DraftGenerationAgent:
 
         prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    dedent(
-                        """
-                        너는 SK하이닉스 R&D 전략 담당자를 위한 기술 전략 분석 보고서를 작성하는 분석가다.
-                        반드시 한국어로 작성하고, 근거를 충분히 반영하며, 보수적이고 검증 가능한 표현을 사용한다.
-                        basis=estimated 인 항목은 반드시 "추정"과 한계를 드러내라.
-                        전달된 검색 근거를 지나치게 요약하지 말고, 주요 사실을 본문에 반영하라.
-                        """
-                    ).strip(),
-                ),
-                (
-                    "human",
-                    dedent(
-                        """
-                        아래 근거를 바탕으로 지정된 범위에 대해서만 보고서를 작성하라.
-
-                        제약:
-                        - 기술 범위: {topic_scope}
-                        - 경쟁사 범위: {competitor_scope}
-                        - 지정되지 않은 기술이나 경쟁사를 새로 추가하지 않는다.
-                        - 단일 경쟁사면 단일 경쟁사 섹션만 작성한다.
-                        - reference는 URL bullet list로 작성한다.
-                        - 반드시 아래 목차와 분량 규칙을 지킨다.
-
-                        목차 규칙:
-                        - # EXECUTIVE SUMMARY: 450~550자
-                        - # 1. 분석 배경
-                        - ## 1.1 분석 목적: 최소 300자
-                        - ## 1.2 분석 범위: 최소 300자
-                        - # 2. 기술 현황: 최소 300자
-                        - # 3. 조사 결과
-                        - ## 3.1 {{경쟁사명}}
-                        - ## 3.1.1 {{경쟁사명}} 동향: 최소 300자
-                        - ## 3.1.2 {{경쟁사명}} TRL 기반 기술 성숙도: 최소 300자
-                        - ## 3.1.3 {{경쟁사명}} 전략적 시사점: 최소 300자
-                        - 경쟁사가 늘어나면 같은 패턴으로 ## 3.2, ## 3.2.1, ## 3.2.2, ## 3.2.3을 사용한다.
-                        - # 4. 결론: 최소 300자
-                        - # REFERENCE
-
-                        검색 근거:
-                        {evidence_block}
-
-                        TRL 근거:
-                        {trl_block}
-                        """
-                    ).strip(),
-                ),
+                ("system", DRAFT_SYSTEM_PROMPT),
+                ("human", DRAFT_USER_PROMPT_TEMPLATE),
             ]
         )
+
+        competitor_sections_spec = self._build_competitor_sections_spec(competitors)
 
         chain = prompt | self.draft_llm.with_structured_output(DraftSectionsOutput)
         llm_sections = chain.invoke(
@@ -176,6 +140,10 @@ class DraftGenerationAgent:
                 "competitor_scope": ", ".join(competitors),
                 "evidence_block": "\n".join(evidence_lines),
                 "trl_block": "\n".join(trl_lines),
+                "exec_sum_min": self._exec_sum_min,
+                "exec_sum_max": self._exec_sum_max,
+                "section_min": self._section_min,
+                "competitor_sections_spec": competitor_sections_spec,
             }
         )
         sections = ReportSections(
@@ -219,8 +187,8 @@ class DraftGenerationAgent:
                 "따라서 본 보고서는 즉시 경쟁이 벌어지는 고성숙 기술과 중장기 검증이 필요한 기술을 구분해 해석하고, "
                 "실행 우선순위를 도출하는 데 초점을 둔다."
             ),
-            450,
-        )[:550]
+            self._exec_sum_min,
+        )[: self._exec_sum_max]
         analysis_purpose = self._ensure_min_length(
             (
                 f"분석 목적은 {', '.join(topics)} 영역에서 {', '.join(competitors)}의 기술 추진 방향, 양산 신호, 공개 발표의 질을 정리하고 "
@@ -229,7 +197,7 @@ class DraftGenerationAgent:
                 "기사 하나의 톤보다 반복적으로 관측되는 공개 신호의 성격이 중요하다. "
                 "이 보고서는 검색 근거를 단순 요약하는 수준을 넘어서 기술 성숙도와 전략적 위협 수준을 실무적으로 해석하는 것을 목적으로 한다."
             ),
-            300,
+            self._section_min,
         )
         analysis_scope = self._ensure_min_length(
             (
@@ -240,7 +208,7 @@ class DraftGenerationAgent:
                 "제조 전략, 기사 맥락에서 드러나는 위험 요소까지 함께 검토한다. "
                 "본 보고서는 지정되지 않은 기술과 경쟁사를 확장하지 않고, 요청 범위 안에서 실질적인 전략 판단에 필요한 정보만 구조화한다."
             ),
-            300,
+            self._section_min,
         )
         tech_status = self._ensure_min_length(
             " ".join(
@@ -252,7 +220,7 @@ class DraftGenerationAgent:
                     for topic in topics
                 ]
             ),
-            300,
+            self._section_min,
         )
 
         result_blocks: list[str] = []
@@ -268,7 +236,7 @@ class DraftGenerationAgent:
                                 evidence_map,
                                 topics,
                             ),
-                            300,
+                            self._section_min,
                         ),
                         f"## 3.{index}.2 {competitor} TRL 기반 기술 성숙도\n"
                         + self._ensure_min_length(
@@ -277,7 +245,7 @@ class DraftGenerationAgent:
                                 assessments,
                                 topics,
                             ),
-                            300,
+                            self._section_min,
                         ),
                         f"## 3.{index}.3 {competitor} 전략적 시사점\n"
                         + self._ensure_min_length(
@@ -285,7 +253,7 @@ class DraftGenerationAgent:
                                 competitor,
                                 topics,
                             ),
-                            300,
+                            self._section_min,
                         ),
                     ]
                 )
@@ -300,7 +268,7 @@ class DraftGenerationAgent:
                 "SK하이닉스는 성숙도가 높은 기술에서는 양산 경쟁력과 고객사 대응 속도를 강화하고, "
                 "추정 구간 기술에서는 실수요와 제품화 가능성 검증에 자원을 배분하는 이중 전략이 필요하다."
             ),
-            300,
+            self._section_min,
         )
         references = "\n".join(
             f"- [{item['title']}]({item['url']})"
@@ -345,27 +313,8 @@ class DraftGenerationAgent:
 
         prompt = ChatPromptTemplate.from_messages(
             [
-                (
-                    "system",
-                    "너는 기술 보고서 품질 평가자다. 반드시 JSON 스키마에 맞게만 응답한다.",
-                ),
-                (
-                    "human",
-                    dedent(
-                        """
-                        아래 보고서를 1~5점으로 평가하라.
-
-                        평가 항목:
-                        - summary_score: EXECUTIVE SUMMARY 분량과 완성도
-                        - coverage_score: 요구 목차와 하위 항목 완결도
-                        - evidence_score: URL 근거와 주장 연결성
-                        - consistency_score: 섹션 간 논리 일관성
-
-                        보고서:
-                        {markdown}
-                        """
-                    ).strip(),
-                ),
+                ("system", QUALITY_SYSTEM_PROMPT),
+                ("human", QUALITY_USER_PROMPT_TEMPLATE),
             ]
         )
         chain = prompt | self.judge_llm.with_structured_output(DraftScoreOutput)
@@ -384,7 +333,11 @@ class DraftGenerationAgent:
     ) -> dict[str, int]:
         """규칙 기반 품질 점수를 계산한다."""
         coverage_score = 5 if all(sections.values()) else 2
-        summary_score = 5 if 450 <= len(sections["executive_summary"]) <= 550 else 3
+        summary_score = (
+            5
+            if self._exec_sum_min <= len(sections["executive_summary"]) <= self._exec_sum_max
+            else 3
+        )
         evidence_score = 5 if len(search_results) >= 6 else 2
         consistency_score = 5 if "TRL" in sections["investigation_results"] else 2
         return {
@@ -486,21 +439,37 @@ class DraftGenerationAgent:
             text += filler
         return text
 
+    def _build_competitor_sections_spec(self, competitors: list[str]) -> str:
+        """LLM 프롬프트에 주입할 경쟁사별 섹션 목차 명세를 동적으로 생성한다."""
+        lines: list[str] = []
+        for i, competitor in enumerate(competitors, start=1):
+            lines += [
+                f"- ## 3.{i} {competitor}",
+                f"- ### 3.{i}.1 {competitor} 동향: 최소 {self._section_min}자",
+                f"- ### 3.{i}.2 {competitor} TRL 기반 기술 성숙도: 최소 {self._section_min}자",
+                f"- ### 3.{i}.3 {competitor} 전략적 시사점: 최소 {self._section_min}자",
+            ]
+        return "\n".join(lines)
+
     def _enforce_scope(
         self,
         markdown: str,
         topics: list[str],
         competitors: list[str],
     ) -> str:
-        """LLM 출력이 요청 범위를 벗어나면 최소한의 가드레일로 잘라낸다."""
-        forbidden_topics = [topic for topic in ["HBM4", "PIM", "CXL"] if topic not in topics]
-        forbidden_competitors = [
-            competitor for competitor in ["Samsung", "Micron"] if competitor not in competitors
-        ]
+        """LLM 출력에서 요청 범위를 벗어난 기술 토픽만 필터링한다.
+        경쟁사는 동적으로 결정되므로 하드코딩하지 않는다.
+        """
+        # 프로젝트에서 다루는 전체 기술 목록 중 요청에 없는 것만 금지
+        all_known_topics = ["HBM4", "PIM", "CXL"]
+        forbidden_tokens = [t for t in all_known_topics if t not in topics]
+
+        if not forbidden_tokens:
+            return markdown
 
         filtered_lines: list[str] = []
         for line in markdown.splitlines():
-            if any(token in line for token in forbidden_topics + forbidden_competitors):
+            if any(token in line for token in forbidden_tokens):
                 continue
             filtered_lines.append(line)
         return "\n".join(filtered_lines)

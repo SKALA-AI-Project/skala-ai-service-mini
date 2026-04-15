@@ -8,22 +8,16 @@ from langsmith import traceable
 from tavily import TavilyClient
 
 from config import RuntimeConfig
+from prompts.search_prompt import build_query
 from schemas.search_result import SearchResult
 
 
 class WebSearchAgent:
-    """Tavily 기반 실검색과 mock fallback을 함께 처리한다."""
-
-    perspectives = {
-        "positive": "시장 선도 전망",
-        "negative": "기술 리스크와 지연 요인",
-        "neutral": "기술 개발 동향",
-    }
-
-    source_types = ["official", "analyst", "academic", "news"]
+    """Tavily 기반 실검색과 테스트용 mock 경로를 함께 처리한다."""
 
     def __init__(self, config: RuntimeConfig) -> None:
         self.config = config
+        self.search_config = config.search
         self.client = TavilyClient(api_key=config.tavily_api_key) if config.tavily_api_key else None
 
     def build_date_range(self) -> dict[str, str]:
@@ -49,54 +43,75 @@ class WebSearchAgent:
             print("[LOG] WebSearchAgent mock 경로 사용")
             return self._collect_mock_results(topics, competitors, date_range)
 
+        return self._collect_live_results(topics, competitors, date_range)
+
+    def _collect_live_results(
+        self,
+        topics: list[str],
+        competitors: list[str],
+        date_range: dict[str, str],
+    ) -> tuple[list[SearchResult], dict[str, int], bool]:
+        """Tavily API를 사용해 실검색을 수행한다.
+
+        - API 예외: 호출 자체가 실패한 경우 → 오류 로그 후 해당 쿼리 건너뜀
+        - 빈 결과: 호출은 성공했지만 결과가 없는 경우 → 빈 결과 로그 후 건너뜀
+        두 경우 모두 mock으로 대체하지 않고 실패를 명시적으로 기록한다.
+        """
         results: list[SearchResult] = []
         domain_cap: dict[str, int] = {}
 
-        # 확증 편향을 줄이기 위해 기술/기업별로 3개 관점 질의를 모두 수행한다.
         for tech in topics:
             for company in competitors:
-                for perspective, suffix in self.perspectives.items():
-                    query = f"{company} {tech} {suffix}"
-                    response = self.client.search(
-                        query=query,
-                        topic="news",
-                        days=90,
-                        max_results=5,
-                        include_raw_content=True,
-                    )
-
-                    for item in response.get("results", []):
-                        url = item.get("url", "")
-                        domain = urlparse(url).netloc
-                        if domain and domain_cap.get(domain, 0) >= 2:
+                for perspective, suffix in self.search_config.perspectives.items():
+                    query = build_query(company, tech, suffix)
+                    try:
+                        response = self.client.search(
+                            query=query,
+                            topic="news",
+                            days=90,
+                            max_results=5,
+                            include_raw_content=True,
+                        )
+                        raw_results = response.get("results", [])
+                        if not raw_results:
+                            # API 호출 성공이지만 빈 결과 — mock 대체 없이 로그만 기록
+                            print(f"[LOG] 검색 빈 결과: query={query}")
                             continue
 
-                        result = SearchResult(
-                            query=query,
-                            title=item.get("title", query),
-                            url=url,
-                            content=item.get("raw_content") or item.get("content", ""),
-                            perspective=perspective,  # type: ignore[arg-type]
-                            source_type=self._classify_source_type(
-                                url=url,
-                                title=item.get("title", ""),
-                                content=item.get("content", ""),
-                            ),  # type: ignore[arg-type]
-                            published_date=item.get("published_date", date_range["to"]),
-                            company=company,
-                            tech=tech,
-                        )
-                        results.append(result)
-                        if domain:
-                            domain_cap[domain] = domain_cap.get(domain, 0) + 1
+                        for item in raw_results:
+                            url = item.get("url", "")
+                            domain = urlparse(url).netloc
+                            if domain and domain_cap.get(domain, 0) >= self.search_config.domain_cap:
+                                continue
 
-        # API 결과가 비어 있으면 설계 검증 흐름은 유지하되, 로그로 구분 가능하게 mock을 사용한다.
-        if not results:
-            print("[LOG] Tavily 결과 비어 있음: mock 경로로 대체")
-            return self._collect_mock_results(topics, competitors, date_range)
+                            result = SearchResult(
+                                query=query,
+                                title=item.get("title", query),
+                                url=url,
+                                content=item.get("raw_content") or item.get("content", ""),
+                                perspective=perspective,  # type: ignore[arg-type]
+                                source_type=self._classify_source_type(
+                                    url=url,
+                                    title=item.get("title", ""),
+                                    content=item.get("content", ""),
+                                ),  # type: ignore[arg-type]
+                                published_date=item.get("published_date", date_range["to"]),
+                                company=company,
+                                tech=tech,
+                            )
+                            results.append(result)
+                            if domain:
+                                domain_cap[domain] = domain_cap.get(domain, 0) + 1
+
+                    except Exception as exc:
+                        # API 호출 자체가 실패한 경우 — 빈 결과와 구분해 명시적으로 기록
+                        print(f"[LOG] 검색 API 오류: query={query}, error={exc}")
 
         scores = self._score_results(results)
-        bias_check = scores["bias_score"] >= 3 and scores["search_richness"] >= 3
+        bias_check = (
+            scores["bias_score"] >= self.search_config.bias_score_threshold
+            and scores["search_richness"] >= self.search_config.search_richness_threshold
+        )
         print(
             "[LOG] WebSearchAgent.collect 완료:"
             f" results={len(results)}, scores={scores}, bias_check={bias_check}"
@@ -109,25 +124,29 @@ class WebSearchAgent:
         competitors: list[str],
         date_range: dict[str, str],
     ) -> tuple[list[SearchResult], dict[str, int], bool]:
-        """실검색이 어려운 경우 테스트와 로컬 개발을 위해 사용하는 대체 경로다."""
+        """테스트와 로컬 개발을 위한 대체 경로다. 실서비스 경로에서는 호출하지 않는다."""
         results: list[SearchResult] = []
+        source_types = list(self.search_config.source_type_rules.keys())
 
         for tech in topics:
             for company in competitors:
-                for index, (perspective, suffix) in enumerate(self.perspectives.items()):
+                for index, (perspective, suffix) in enumerate(self.search_config.perspectives.items()):
                     results.append(
                         self._build_mock_result(
                             tech=tech,
                             company=company,
                             perspective=perspective,
                             suffix=suffix,
-                            source_type=self.source_types[index % len(self.source_types)],
+                            source_type=source_types[index % len(source_types)],
                             published_date=date_range["to"],
                         )
                     )
 
         scores = self._score_results(results)
-        bias_check = scores["bias_score"] >= 3 and scores["search_richness"] >= 3
+        bias_check = (
+            scores["bias_score"] >= self.search_config.bias_score_threshold
+            and scores["search_richness"] >= self.search_config.search_richness_threshold
+        )
         print(
             "[LOG] mock 검색 결과 생성:"
             f" results={len(results)}, scores={scores}, bias_check={bias_check}"
@@ -144,7 +163,7 @@ class WebSearchAgent:
         published_date: str,
     ) -> SearchResult:
         """설계 검증용 모의 검색 결과를 표준 형태로 만든다."""
-        query = f"{company} {tech} {suffix}"
+        query = build_query(company, tech, suffix)
         return SearchResult(
             query=query,
             title=f"{company} {tech} {suffix}",
@@ -161,16 +180,11 @@ class WebSearchAgent:
         )
 
     def _classify_source_type(self, url: str, title: str, content: str) -> str:
-        """도메인과 본문 힌트로 소스 유형을 추정한다."""
+        """config의 source_type_rules를 기준으로 소스 유형을 추정한다."""
         lowered = " ".join([url.lower(), title.lower(), content.lower()])
-        if any(token in lowered for token in ["samsung.com", "micron.com", "skhynix"]):
-            return "official"
-        if any(token in lowered for token in ["trendforce", "gartner", "idc", "counterpoint"]):
-            return "analyst"
-        if any(token in lowered for token in ["arxiv", "ieee", "isscc", "hot chips", "patent"]):
-            return "academic"
-        if any(token in lowered for token in ["blog", "medium", "substack"]):
-            return "blog"
+        for source_type, keywords in self.search_config.source_type_rules.items():
+            if any(token in lowered for token in keywords):
+                return source_type
         return "news"
 
     def _score_results(self, results: list[SearchResult]) -> dict[str, int]:
